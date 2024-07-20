@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34511.84
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GorillaRichPresence", "GorillaRichPresence\GorillaRichPresence.csproj", "{DFC6A948-45CA-48C3-9837-CBA2B1C2A147}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DFC6A948-45CA-48C3-9837-CBA2B1C2A147}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DFC6A948-45CA-48C3-9837-CBA2B1C2A147}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DFC6A948-45CA-48C3-9837-CBA2B1C2A147}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DFC6A948-45CA-48C3-9837-CBA2B1C2A147}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5AC6D703-3B57-48A7-88CA-8C71210B8729}
+	EndGlobalSection
+EndGlobal
