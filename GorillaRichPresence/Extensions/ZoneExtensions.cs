@@ -7,10 +7,10 @@
             string zoneName = zone.ToString();
             return zoneName switch
             {
-                "cityNoBuildings" => "City",
-                "skyJungle" => "Clouds",
-                "cityWithSkyJungle" => "City",
-                _ => zoneName.ToFormal()
+                "cityNoBuildings" => "CITY",
+                "skyJungle" => "CLOUDS",
+                "cityWithSkyJungle" => "CITY",
+                _ => zoneName.ToTitleCase().ToUpper()
             };
         }
     }

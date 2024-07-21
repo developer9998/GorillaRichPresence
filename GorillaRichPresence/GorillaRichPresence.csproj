@@ -24,9 +24,6 @@
     <Reference Include="BepInEx.Harmony">
       <HintPath>$(BepInExAssemblyPath)\BepInEx.Harmony.dll</HintPath>
     </Reference>
-    <Reference Include="Bepinject">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\BepInEx\plugins\Bepinject-Auros\Bepinject.dll</HintPath>
-    </Reference>
     <Reference Include="Cinemachine">
       <HintPath>$(GameAssemblyPath)\Cinemachine.dll</HintPath>
     </Reference>
@@ -287,12 +284,6 @@
     </Reference>
     <Reference Include="websocket-sharp">
       <HintPath>$(GameAssemblyPath)\websocket-sharp.dll</HintPath>
-    </Reference>
-    <Reference Include="Zenject">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\BepInEx\plugins\Extenject\Zenject.dll</HintPath>
-    </Reference>
-    <Reference Include="Zenject-usage">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\BepInEx\plugins\Extenject\Zenject-usage.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 ﻿namespace GorillaRichPresence
 {
-    internal class RP_Constants
+    internal class Constants
     {
         public const string Guid = "dev.gorillarichpresence";
 

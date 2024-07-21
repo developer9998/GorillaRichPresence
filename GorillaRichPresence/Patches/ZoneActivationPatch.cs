@@ -9,7 +9,7 @@ namespace GorillaRichPresence.Patches
         public static void Prefix(GTZone[] newActiveZones)
         {
             GTZone primaryZone = newActiveZones.First();
-            RP_Events.Instance.MapEntered(primaryZone);
+            GlobalEvents.Instance.MapEntered(primaryZone);
         }
     }
 }

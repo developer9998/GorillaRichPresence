@@ -2,11 +2,11 @@
 
 namespace GorillaRichPresence
 {
-    public class RP_Events
+    public class GlobalEvents
     {
-        public static RP_Events Instance => events;
+        public static GlobalEvents Instance => events;
 
-        private static readonly RP_Events events = new();
+        private static readonly GlobalEvents events = new();
 
         public static event Action<GTZone> OnMapEntered;
         public static event Action<string> OnNameChanged;

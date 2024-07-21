@@ -5,21 +5,21 @@ using UnityEngine;
 
 namespace GorillaRichPresence.Tools
 {
-    public class DiscordRegistrar
+    public static class DiscordRegistrar
     {
-        private Discord.Discord _discord;
-        private ActivityManager _activityManager;
-        private Activity _activity;
+        private static Discord.Discord _discord;
+        private static ActivityManager _activityManager;
+        private static Activity _activity;
 
-        private bool _updateRequested = true;
-        private float _lastUpdate;
+        private static bool _updateRequested = true;
+        private static float _lastUpdate;
 
-        public void Initialize()
+        public static void Construct()
         {
             new Thread(RegisterDiscord).Start();
         }
 
-        public void RegisterDiscord()
+        public static void RegisterDiscord()
         {
             if (_discord != null)
             {
@@ -27,7 +27,7 @@ namespace GorillaRichPresence.Tools
                 return;
             }
 
-            _discord = new Discord.Discord(RP_Constants.ApplicationID, (ulong)CreateFlags.NoRequireDiscord);
+            _discord = new Discord.Discord(Constants.ApplicationID, (ulong)CreateFlags.NoRequireDiscord);
             _activityManager = _discord.GetActivityManager();
 
             if (_activityManager == null)
@@ -36,7 +36,7 @@ namespace GorillaRichPresence.Tools
                 return;
             }
 
-            _activityManager.RegisterSteam(RP_Constants.SteamID);
+            _activityManager.RegisterSteam(Constants.SteamID);
 
             _activity.Timestamps.Start = ((DateTimeOffset)DateTime.Now).ToUnixTimeSeconds();
 
@@ -72,9 +72,9 @@ namespace GorillaRichPresence.Tools
                 {
                     try
                     {
-                        Thread.Sleep((int)(RP_Constants.TickDebounce * 1000f));
+                        Thread.Sleep((int)(Constants.TickDebounce * 1000f));
 
-                        if (_updateRequested && (Time.realtimeSinceStartup > (_lastUpdate + RP_Constants.UpdateDebunce) || _lastUpdate == 0))
+                        if (_updateRequested && (Time.realtimeSinceStartup > (_lastUpdate + Constants.UpdateDebunce) || _lastUpdate == 0))
                         {
                             _updateRequested = false;
                             _lastUpdate = Time.realtimeSinceStartup;
@@ -106,13 +106,13 @@ namespace GorillaRichPresence.Tools
             }
         }
 
-        public void ModifyActivity(Func<Activity, Activity> modificationFunc)
+        public static void ModifyActivity(Func<Activity, Activity> modificationFunc)
         {
             Activity modifiedActivity = modificationFunc(_activity);
             _activity = modifiedActivity;
         }
 
-        public void UpdateActivity()
+        public static void UpdateActivity()
         {
             _updateRequested = true;
         }
