@@ -106,7 +106,7 @@ namespace GorillaRichPresence.Tools
             }
         }
 
-        public static void ModifyActivity(Func<Activity, Activity> modificationFunc)
+        public static void ConstructActivity(Func<Activity, Activity> modificationFunc)
         {
             Activity modifiedActivity = modificationFunc(_activity);
             _activity = modifiedActivity;

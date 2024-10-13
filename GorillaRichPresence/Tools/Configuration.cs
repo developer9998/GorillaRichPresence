@@ -10,7 +10,7 @@ namespace GorillaRichPresence.Tools
 
         public static ConfigEntry<bool> DisplayPrivateCode;
 
-        public static void Construct(ConfigFile file)
+        public static void Initialize(ConfigFile file)
         {
             File = file;
 

@@ -1,34 +1,59 @@
 ﻿using Discord;
+using GorillaGameModes;
 using GorillaRichPresence.Extensions;
 using GorillaRichPresence.Tools;
+using GorillaTagScripts.ModIO;
+using ModIO;
+using System;
+using System.Globalization;
+using System.Linq;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace GorillaRichPresence.Behaviours
 {
     public class Main : MonoBehaviour
     {
-        private bool _isModdedRoom;
+        public static Main Instance { get; private set; }
+
+        private GTZone Zone;
+
+        private bool UseRoomMap;
+        private ModProfile RoomMap;
+
+        public void Awake()
+        {
+            if (Instance == null)
+            {
+                Instance = this;
+            }
+            else if (Instance != this)
+            {
+                Destroy(gameObject);
+            }
+
+            this.LogCurrentMethod();
+        }
 
         public void Start()
         {
-            Logging.Log("object created");
-            GlobalEvents.OnMapEntered += OnMapEntered;
-            GlobalEvents.OnNameChanged += OnNameChanged;
-            GlobalEvents.OnModdedStatusChanged += OnModdedStatusChanged;
+            Logging.Log("Object created");
 
             NetworkSystem.Instance.OnMultiplayerStarted += UpdateMultiplayer;
             NetworkSystem.Instance.OnPlayerJoined += UpdateMultiplayer;
             NetworkSystem.Instance.OnPlayerLeft += UpdateMultiplayer;
             NetworkSystem.Instance.OnReturnedToSinglePlayer += UpdateSingleplayer;
+            GameEvents.OnModIOLoggedIn.AddListener(new UnityAction(OnModIOLoggedIn));
+            CustomMapManager.OnRoomMapChanged.AddListener(new UnityAction<ModId>(OnRoomMapChanged));
 
-            Logging.Log("beginning construct");
+            Logging.Log("Constructing Discord client");
             DiscordRegistrar.Construct();
 
-            Logging.Log("constructed! setting up initial activity");
-            DiscordRegistrar.ModifyActivity((Activity Activity) =>
+            Logging.Log("Constructing initial Activity");
+            DiscordRegistrar.ConstructActivity((Activity Activity) =>
             {
-                Activity.State = "Not in Room";
-                Activity.Details = string.Empty;
+                Activity.Details = "Not in Room";
+                Activity.State = string.Empty;
                 Activity.Assets.SmallImage = "gorilla";
                 Activity.Assets.SmallText = NetworkSystem.Instance.GetMyNickName();
                 Activity.Assets.LargeImage = "forest";
@@ -39,48 +64,69 @@ namespace GorillaRichPresence.Behaviours
             DiscordRegistrar.UpdateActivity();
         }
 
-        private void OnMapEntered(GTZone zone)
+        public void EnterMap(GTZone zone)
         {
-            DiscordRegistrar.ModifyActivity((Activity Activity) =>
+            Zone = zone;
+
+            DiscordRegistrar.ConstructActivity((Activity Activity) =>
             {
                 Activity.Assets.LargeImage = zone.ToString().ToLower();
-                Activity.Assets.LargeText = zone.FormalZoneName();
+                Activity.Assets.LargeText = ZoneEx.ToString(zone);
                 return Activity;
             });
 
-            if (!NetworkSystem.Instance.InRoom || (NetworkSystem.Instance.InRoom && NetworkSystem.Instance.SessionIsPrivate)) DiscordRegistrar.UpdateActivity();
+            if (!NetworkSystem.Instance.InRoom || (NetworkSystem.Instance.InRoom && NetworkSystem.Instance.SessionIsPrivate) || Zone == GTZone.customMaps) DiscordRegistrar.UpdateActivity();
         }
 
-        private void OnNameChanged(string nickname)
+        public void ChangeName(string nickName)
         {
-            DiscordRegistrar.ModifyActivity((Activity Activity) =>
+            DiscordRegistrar.ConstructActivity((Activity Activity) =>
             {
-                Activity.Assets.SmallText = NetworkSystem.Instance.GetMyNickName();
+                Activity.Assets.SmallText = nickName;
                 return Activity;
             });
 
             DiscordRegistrar.UpdateActivity();
         }
 
-        private void OnModdedStatusChanged(bool isModdedRoom)
+        public void OnModIOLoggedIn()
         {
-            _isModdedRoom = isModdedRoom;
+            UpdateRoomMap();
 
-            if (!NetworkSystem.Instance.InRoom) return;
-            UpdateMultiplayer();
+            DiscordRegistrar.UpdateActivity();
         }
 
-        private void UpdateMultiplayer(int player) => UpdateMultiplayer();
+        public void OnRoomMapChanged(ModId roomMapModId)
+        {
+            UpdateRoomMap();
+
+            DiscordRegistrar.UpdateActivity();
+        }
+
+        private void UpdateMultiplayer(NetPlayer netPlayer) => UpdateMultiplayer();
 
         private void UpdateMultiplayer()
         {
-            DiscordRegistrar.ModifyActivity((Activity Activity) =>
+            if (Zone == GTZone.customMaps)
             {
-                string currentQueue = NetworkSystem.Instance.GameModeString.ToUpper().ToBestMatch("DEFAULT", "MINIGAMES", "COMPETITIVE");
-                string currentGameMode = NetworkSystem.Instance.GameModeString.ToUpper().ToBestMatch("INFECTION", "CASUAL", "HUNT", "BATTLE", "PAINTBRAWL").Replace("BATTLE", "PAINTBRAWL");
+                UpdateRoomMap();
+            }
+
+            DiscordRegistrar.ConstructActivity((Activity Activity) =>
+            {
+                TextInfo textInfo = new CultureInfo("en-US", false).TextInfo;
+
+                string gameModeString = NetworkSystem.Instance.GameModeString.ToUpper();
+                bool isModdedRoom = gameModeString.Contains("MODDED_");
+
+                string[] queueNames = ["DEFAULT", "MINIGAMES", "COMPETITIVE"];
+                string currentQueue = textInfo.ToTitleCase(queueNames.First(queue => queueNames.Contains(queue)).ToLower());
+
+                var gameModeNames = Enum.GetNames(typeof(GameModeType));
+                string currentGameMode = textInfo.ToTitleCase(gameModeNames.Select(gameMode => gameMode.ToUpper()).First(gameMode => gameModeString.Contains(gameMode)).ToLower());
 
                 Activity.State = NetworkSystem.Instance.SessionIsPrivate ? string.Format("In {0}", Configuration.DisplayPrivateCode.Value ? string.Concat("Room ", NetworkSystem.Instance.RoomName) : "Private Room") : string.Format("In {0}", Configuration.DisplayPublicCode.Value ? string.Concat("Room ", NetworkSystem.Instance.RoomName) : "Public Room");
-                Activity.Details = string.Concat(currentQueue.ToTitleCase(), ", ", _isModdedRoom ? "Modded " : "", currentGameMode.ToTitleCase());
+                Activity.Details = string.Concat(currentQueue, ", ", isModdedRoom ? "Modded " : "", currentGameMode);
                 Activity.Party.Size.CurrentSize = NetworkSystem.Instance.RoomPlayerCount;
                 Activity.Party.Size.MaxSize = 10;
 
@@ -92,10 +138,15 @@ namespace GorillaRichPresence.Behaviours
 
         private void UpdateSingleplayer()
         {
-            DiscordRegistrar.ModifyActivity((Activity Activity) =>
+            if (Zone == GTZone.customMaps)
             {
-                Activity.State = "Not in Room";
-                Activity.Details = string.Empty;
+                UpdateRoomMap();
+            }
+
+            DiscordRegistrar.ConstructActivity((Activity Activity) =>
+            {
+                Activity.Details = "Not in Room";
+                Activity.State = string.Empty;
 
                 Activity.Assets.SmallText = NetworkSystem.Instance.GetMyNickName();
 
@@ -110,6 +161,45 @@ namespace GorillaRichPresence.Behaviours
             });
 
             DiscordRegistrar.UpdateActivity();
+        }
+
+        private void UpdateRoomMap()
+        {
+            UseRoomMap = false;
+
+            if (ModIODataStore.IsLoggedIn())
+            {
+                ModId currentRoomMap = CustomMapManager.GetRoomMapId();
+                if (currentRoomMap != ModId.Null)
+                {
+                    ModIODataStore.GetModProfile(currentRoomMap, delegate (ModIORequestResultAnd<ModProfile> result)
+                    {
+                        if (ModIODataStore.IsLoggedIn() && result.result.success)
+                        {
+                            UseRoomMap = true;
+                            RoomMap = result.data;
+                        }
+                    }, false);
+                }
+            }
+
+            if (UseRoomMap)
+            {
+                DiscordRegistrar.ConstructActivity((Activity Activity) =>
+                {
+                    Activity.Assets.LargeImage = RoomMap.logoImage640x360.url;
+                    Activity.Assets.LargeText = $"{RoomMap.name} ({RoomMap.creator.username})";
+                    return Activity;
+                });
+                return;
+            }
+
+            DiscordRegistrar.ConstructActivity((Activity Activity) =>
+            {
+                Activity.Assets.LargeImage = GTZone.customMaps.ToString().ToLower();
+                Activity.Assets.LargeText = ZoneEx.ToString(GTZone.customMaps);
+                return Activity;
+            });
         }
     }
 }

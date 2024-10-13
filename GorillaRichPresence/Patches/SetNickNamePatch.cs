@@ -1,14 +1,15 @@
-﻿using HarmonyLib;
+﻿using GorillaRichPresence.Behaviours;
+using HarmonyLib;
 
 namespace GorillaRichPresence.Patches
 {
     [HarmonyPatch]
     public class SetNickNamePatch
     {
-        [HarmonyPatch(typeof(NetworkSystemPUN), "SetMyNickName"), HarmonyPrefix]
-        public static void SetNamePhotonUnityNetworking(string id) => GlobalEvents.Instance.NameChanged(id);
+        [HarmonyPatch(typeof(NetworkSystemPUN), "SetMyNickName"), HarmonyPostfix]
+        public static void SetNamePhotonUnityNetworking(string id) => Main.Instance.ChangeName(id);
 
-        [HarmonyPatch(typeof(NetworkSystemFusion), "SetMyNickName"), HarmonyPrefix]
-        public static void SetNameFusion(string name) => GlobalEvents.Instance.NameChanged(name);
+        [HarmonyPatch(typeof(NetworkSystemFusion), "SetMyNickName"), HarmonyPostfix]
+        public static void SetNameFusion(string name) => Main.Instance.ChangeName(name);
     }
 }

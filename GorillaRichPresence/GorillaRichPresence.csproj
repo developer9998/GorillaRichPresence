@@ -30,6 +30,9 @@
     <Reference Include="clipper_library">
       <HintPath>$(GameAssemblyPath)\clipper_library.dll</HintPath>
     </Reference>
+    <Reference Include="modio.UnityPlugin">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\modio.UnityPlugin.dll</HintPath>
+    </Reference>
     <Reference Include="Mono.Security">
       <HintPath>$(GameAssemblyPath)\Mono.Security.dll</HintPath>
     </Reference>
@@ -278,12 +281,6 @@
     </Reference>
     <Reference Include="UnityEngine.XRModule">
       <HintPath>$(GameAssemblyPath)\UnityEngine.XRModule.dll</HintPath>
-    </Reference>
-    <Reference Include="Utilla">
-      <HintPath>$(PluginsPath)\Utilla\Utilla.dll</HintPath>
-    </Reference>
-    <Reference Include="websocket-sharp">
-      <HintPath>$(GameAssemblyPath)\websocket-sharp.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>

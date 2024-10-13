@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using GorillaRichPresence.Behaviours;
+using HarmonyLib;
 using System.Linq;
 
 namespace GorillaRichPresence.Patches
@@ -9,7 +10,7 @@ namespace GorillaRichPresence.Patches
         public static void Prefix(GTZone[] newActiveZones)
         {
             GTZone primaryZone = newActiveZones.First();
-            GlobalEvents.Instance.MapEntered(primaryZone);
+            Main.Instance.EnterMap(primaryZone);
         }
     }
 }
