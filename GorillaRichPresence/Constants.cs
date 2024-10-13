@@ -6,7 +6,7 @@
 
         public const string Name = "GorillaRichPresence";
 
-        public const string Version = "1.0.0.0";
+        public const string Version = "1.0.0.1";
 
         public const string DllName = "discord_game_sdk";
 
