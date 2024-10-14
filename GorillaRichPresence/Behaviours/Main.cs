@@ -1,11 +1,13 @@
 ﻿using Discord;
 using GorillaGameModes;
+using GorillaNetworking;
 using GorillaRichPresence.Extensions;
 using GorillaRichPresence.Tools;
+using GorillaRichPresence.Utils;
 using GorillaTagScripts.ModIO;
 using ModIO;
+using Photon.Pun;
 using System;
-using System.Globalization;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Events;
@@ -15,11 +17,6 @@ namespace GorillaRichPresence.Behaviours
     public class Main : MonoBehaviour
     {
         public static Main Instance { get; private set; }
-
-        private GTZone Zone;
-
-        private bool UseRoomMap;
-        private ModProfile RoomMap;
 
         public void Awake()
         {
@@ -56,8 +53,9 @@ namespace GorillaRichPresence.Behaviours
                 Activity.State = string.Empty;
                 Activity.Assets.SmallImage = "gorilla";
                 Activity.Assets.SmallText = NetworkSystem.Instance.GetMyNickName();
-                Activity.Assets.LargeImage = "forest";
-                Activity.Assets.LargeText = "forest".ToUpper();
+                (string image, string text) = ZoneUtils.GetActivityAssets(PhotonNetworkController.Instance.StartZone);
+                Activity.Assets.LargeImage = image;
+                Activity.Assets.LargeText = text;
                 return Activity;
             });
 
@@ -66,16 +64,15 @@ namespace GorillaRichPresence.Behaviours
 
         public void EnterMap(GTZone zone)
         {
-            Zone = zone;
-
             DiscordRegistrar.ConstructActivity((Activity Activity) =>
             {
-                Activity.Assets.LargeImage = zone.ToString().ToLower();
-                Activity.Assets.LargeText = ZoneEx.ToString(zone);
+                (string image, string text) = ZoneUtils.GetActivityAssets(zone);
+                Activity.Assets.LargeImage = image;
+                Activity.Assets.LargeText = text;
                 return Activity;
             });
 
-            if (!NetworkSystem.Instance.InRoom || (NetworkSystem.Instance.InRoom && NetworkSystem.Instance.SessionIsPrivate) || Zone == GTZone.customMaps) DiscordRegistrar.UpdateActivity();
+            if (!NetworkSystem.Instance.InRoom || (NetworkSystem.Instance.InRoom && NetworkSystem.Instance.SessionIsPrivate)) DiscordRegistrar.UpdateActivity();
         }
 
         public void ChangeName(string nickName)
@@ -91,15 +88,13 @@ namespace GorillaRichPresence.Behaviours
 
         public void OnModIOLoggedIn()
         {
-            UpdateRoomMap();
-
+            CheckCustomMap();
             DiscordRegistrar.UpdateActivity();
         }
 
         public void OnRoomMapChanged(ModId roomMapModId)
         {
-            UpdateRoomMap();
-
+            CheckCustomMap();
             DiscordRegistrar.UpdateActivity();
         }
 
@@ -107,28 +102,26 @@ namespace GorillaRichPresence.Behaviours
 
         private void UpdateMultiplayer()
         {
-            if (Zone == GTZone.customMaps)
+            if (ZoneManagement.IsInZone(GTZone.customMaps))
             {
-                UpdateRoomMap();
+                CheckCustomMap();
             }
 
             DiscordRegistrar.ConstructActivity((Activity Activity) =>
             {
-                TextInfo textInfo = new CultureInfo("en-US", false).TextInfo;
-
                 string gameModeString = NetworkSystem.Instance.GameModeString.ToUpper();
                 bool isModdedRoom = gameModeString.Contains("MODDED_");
 
                 string[] queueNames = ["DEFAULT", "MINIGAMES", "COMPETITIVE"];
-                string currentQueue = textInfo.ToTitleCase(queueNames.First(queue => queueNames.Contains(queue)).ToLower());
+                string currentQueue = queueNames.First(queue => queueNames.Contains(queue)).ToLower().ToTitleCase();
 
-                var gameModeNames = Enum.GetNames(typeof(GameModeType));
-                string currentGameMode = textInfo.ToTitleCase(gameModeNames.Select(gameMode => gameMode.ToUpper()).First(gameMode => gameModeString.Contains(gameMode)).ToLower());
+                string currentGameMode = GameMode.ActiveGameMode?.GameModeName()?.ToLower()?.ToTitleCase() ?? "Null";
 
-                Activity.State = NetworkSystem.Instance.SessionIsPrivate ? string.Format("In {0}", Configuration.DisplayPrivateCode.Value ? string.Concat("Room ", NetworkSystem.Instance.RoomName) : "Private Room") : string.Format("In {0}", Configuration.DisplayPublicCode.Value ? string.Concat("Room ", NetworkSystem.Instance.RoomName) : "Public Room");
-                Activity.Details = string.Concat(currentQueue, ", ", isModdedRoom ? "Modded " : "", currentGameMode);
+                Activity.State = NetworkSystem.Instance.SessionIsPrivate ? $"In {(Configuration.DisplayPrivateCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Private Room")}" : $"In {(Configuration.DisplayPublicCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Public Room")}";
+                Activity.Details = $"{currentQueue}, {(isModdedRoom ? "Modded " : "")}{currentGameMode}";
                 Activity.Party.Size.CurrentSize = NetworkSystem.Instance.RoomPlayerCount;
                 Activity.Party.Size.MaxSize = 10;
+                Activity.Party.Id = NetworkSystem.Instance.RoomName + PhotonNetwork.CloudRegion.Replace("/*", "").ToUpper();
 
                 return Activity;
             });
@@ -138,9 +131,9 @@ namespace GorillaRichPresence.Behaviours
 
         private void UpdateSingleplayer()
         {
-            if (Zone == GTZone.customMaps)
+            if (ZoneManagement.IsInZone(GTZone.customMaps))
             {
-                UpdateRoomMap();
+                CheckCustomMap();
             }
 
             DiscordRegistrar.ConstructActivity((Activity Activity) =>
@@ -152,9 +145,7 @@ namespace GorillaRichPresence.Behaviours
 
                 Activity.Party.Size.CurrentSize = 0;
                 Activity.Party.Size.MaxSize = 0;
-                Activity.Party.Id = 128.ToString();
-                Activity.Secrets.Match = string.Empty;
-                Activity.Secrets.Spectate = string.Empty;
+                Activity.Party.Id = "null";
                 Activity.Secrets.Join = string.Empty;
 
                 return Activity;
@@ -163,10 +154,8 @@ namespace GorillaRichPresence.Behaviours
             DiscordRegistrar.UpdateActivity();
         }
 
-        private void UpdateRoomMap()
+        private void CheckCustomMap()
         {
-            UseRoomMap = false;
-
             if (ModIODataStore.IsLoggedIn())
             {
                 ModId currentRoomMap = CustomMapManager.GetRoomMapId();
@@ -176,28 +165,23 @@ namespace GorillaRichPresence.Behaviours
                     {
                         if (ModIODataStore.IsLoggedIn() && result.result.success)
                         {
-                            UseRoomMap = true;
-                            RoomMap = result.data;
+                            DiscordRegistrar.ConstructActivity((Activity Activity) =>
+                            {
+                                Activity.Assets.LargeImage = result.data.logoImage640x360.url;
+                                Activity.Assets.LargeText = $"{result.data.name} ({result.data.creator.username})";
+                                return Activity;
+                            });
+                            return;
                         }
                     }, false);
                 }
             }
 
-            if (UseRoomMap)
-            {
-                DiscordRegistrar.ConstructActivity((Activity Activity) =>
-                {
-                    Activity.Assets.LargeImage = RoomMap.logoImage640x360.url;
-                    Activity.Assets.LargeText = $"{RoomMap.name} ({RoomMap.creator.username})";
-                    return Activity;
-                });
-                return;
-            }
-
             DiscordRegistrar.ConstructActivity((Activity Activity) =>
             {
-                Activity.Assets.LargeImage = GTZone.customMaps.ToString().ToLower();
-                Activity.Assets.LargeText = ZoneEx.ToString(GTZone.customMaps);
+                (string image, string text) = ZoneUtils.GetActivityAssets(GTZone.customMaps);
+                Activity.Assets.LargeImage = image;
+                Activity.Assets.LargeText = text;
                 return Activity;
             });
         }
