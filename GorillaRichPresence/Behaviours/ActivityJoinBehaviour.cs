@@ -4,7 +4,6 @@ using GorillaNetworking;
 using GorillaRichPresence.Interfaces;
 using GorillaRichPresence.Tools;
 using GorillaTag.Rendering;
-using GorillaTagScripts.ModIO;
 using HarmonyLib;
 using System;
 using System.Collections;
@@ -64,7 +63,7 @@ namespace GorillaRichPresence.Behaviours
             ActivityLowEffortZone = ((string)secretContents[3]).Trim();
             string shaderSettingName = (string)secretContents[4];
             ActivityShaderSettings = shaderSettingName == ZoneShaderSettings.defaultsInstance.name
-                ? 
+                ?
                     ZoneShaderSettings.defaultsInstance
                 : Player.Instance.gameObject.scene
                 .GetComponentsInHierarchy<GorillaTriggerBoxShaderSettings>()

@@ -44,7 +44,7 @@ namespace GorillaRichPresence.Behaviours
             // Add mod.io map events
             GameEvents.OnModIOLoggedIn.AddListener(new UnityAction(OnModIOLoggedIn));
             CustomMapManager.OnRoomMapChanged.AddListener(new UnityAction<ModId>(OnRoomMapChanged));
-            
+
             // Add misc events
             DiscordWrapper.OnActivityJoin += OnActivityJoin;
             ZoneManagement.OnZoneChange += OnZoneChange;
