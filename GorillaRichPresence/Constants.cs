@@ -14,8 +14,8 @@
 
         public const uint SteamID = 1533390;
 
-        public const float UpdateDebunce = 5;
+        public const float ActivityUploadDelay = 5;
 
-        public const float TickDebounce = 0.5f;
+        public const float TickDebounce = 0.4f;
     }
 }
