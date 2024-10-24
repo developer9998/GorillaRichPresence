@@ -178,9 +178,11 @@ namespace GorillaRichPresence.Behaviours
 
         // Room
 
-        private void UpdateMultiplayer(NetPlayer netPlayer) => UpdateMultiplayer();
+        private void UpdateMultiplayer() => UpdateMultiplayer(true);
 
-        private void UpdateMultiplayer()
+        private void UpdateMultiplayer(NetPlayer netPlayer) => UpdateMultiplayer(false);
+
+        private void UpdateMultiplayer(bool isInitialJoin)
         {
             if (ZoneManagement.IsInZone(GTZone.customMaps))
             {
@@ -209,6 +211,14 @@ namespace GorillaRichPresence.Behaviours
                 Activity.Party.Size.MaxSize = PhotonNetworkController.Instance.GetRoomSize(gameModeString);
                 Activity.Party.Id = NetworkSystem.Instance.RoomName + NetworkSystem.Instance.CurrentRegion.Replace("/*", "").ToUpper();
                 Activity.Instance = true;
+
+                if (isInitialJoin)
+                {
+                    // Update map
+                    (string image, string text) = ZoneUtils.GetActivityAssets(ActiveZones.Length == 0 ? PhotonNetworkController.Instance.StartZone : ActiveZones[0]);
+                    Activity.Assets.LargeImage = image;
+                    Activity.Assets.LargeText = text;
+                }
 
                 return Activity;
             });
