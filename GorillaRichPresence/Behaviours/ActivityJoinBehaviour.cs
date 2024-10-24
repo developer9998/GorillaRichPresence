@@ -293,13 +293,7 @@ namespace GorillaRichPresence.Behaviours
             Data.Zones = ((string)eventData[0]).Split('.').Select(str => (GTZone)Enum.Parse(typeof(GTZone), str)).ToArray();
             Data.LowEffortZone = ((string)eventData[1]).Trim();
             string shaderSettingName = (string)eventData[2];
-            Data.ShaderSettings = shaderSettingName == ZoneShaderSettings.defaultsInstance.name
-                ?
-                    ZoneShaderSettings.defaultsInstance
-                : Player.Instance.gameObject.scene
-                .GetComponentsInHierarchy<GorillaTriggerBoxShaderSettings>()
-                .Select(GetShaderSettings)
-                .FirstOrDefault(settings => settings != null && settings.name == shaderSettingName) ?? ZoneShaderSettings.defaultsInstance;
+            Data.ShaderSettings = shaderSettingName == ZoneShaderSettings.defaultsInstance.name ? ZoneShaderSettings.defaultsInstance : Player.Instance.gameObject.scene.GetComponentsInHierarchy<GorillaTriggerBoxShaderSettings>().Select(GetShaderSettings).FirstOrDefault(settings => settings != null && settings.name == shaderSettingName) ?? ZoneShaderSettings.defaultsInstance;
 
             HandleRoomData();
         }
