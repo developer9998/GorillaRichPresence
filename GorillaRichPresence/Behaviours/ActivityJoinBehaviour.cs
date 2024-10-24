@@ -177,7 +177,7 @@ namespace GorillaRichPresence.Behaviours
             restrictPlayer = true;
             Player.Instance.disableMovement = true;
 
-            if (Data.Zones.Contains(GTZone.customMaps) )
+            if (Data.Zones.Contains(GTZone.customMaps) && !GetZoneData(GTZone.customMaps).active)
             {
                 Logging.Info("Proceeding with custom map zone");
 
