@@ -177,66 +177,84 @@ namespace GorillaRichPresence.Behaviours
             restrictPlayer = true;
             Player.Instance.disableMovement = true;
 
-            ZoneManagement.SetActiveZones(Data.Zones);
-            var zoneDataWithScene = zoneData.Where(zd => !string.IsNullOrEmpty(zd.sceneName));
-            if (zoneDataWithScene.Any())
+            if (Data.Zones.Contains(GTZone.customMaps) )
             {
-                Logging.Info("Using scenes");
+                Logging.Info("Proceeding with custom map zone");
 
-                TaskCompletionSource<bool> zoneSceneLoadCompletionSource = new();
-                Dictionary<string, bool> loadedScenes = zoneDataWithScene.ToDictionary(zd => zd.sceneName, zd => false);
-
-                int countLoaded = SceneManager.sceneCount;
-                for (int i = 0; i < countLoaded; i++)
+                GameObject primaryObject = ZoneManagement.instance.GetPrimaryGameObject(GTZone.arcade);
+                var loginTeleporter = primaryObject.GetComponentInChildren<ModIOLoginTeleporter>(true);
+                if (loginTeleporter)
                 {
-                    var scene = SceneManager.GetSceneAt(i);
-                    if (loadedScenes.ContainsKey(scene.name))
-                    {
-                        loadedScenes[scene.name] = scene.isLoaded;
-                    }
-                }
-
-                bool useSceneLoadAction = false;
-                void OnSceneLoaded(Scene loadedScene, LoadSceneMode mode)
-                {
-                    if (loadedScenes.ContainsKey(loadedScene.name))
-                    {
-                        loadedScenes[loadedScene.name] = true;
-                        Logging.Info($"Scene loaded {loadedScene.name} under mode {mode}");
-
-                        Logging.Info($"New dictionary: {string.Join(Environment.NewLine, loadedScenes)}");
-
-                        if (loadedScenes.All(dict => dict.Value == true))
-                        {
-                            Logging.Info("New check is futhfilled");
-                            zoneSceneLoadCompletionSource.SetResult(true);
-                        }
-                    }
-                }
-
-                Logging.Info($"Initial dictionary: {string.Join(Environment.NewLine, loadedScenes)}");
-
-                if (loadedScenes.All(dict => dict.Value == true))
-                {
-                    Logging.Info("Initial check is futhfilled");
-                    zoneSceneLoadCompletionSource.SetResult(true);
+                    loginTeleporter.LoginAndTeleport();
                 }
                 else
                 {
-                    Logging.Info("Waiting for scenes to load");
-
-                    useSceneLoadAction = true;
-                    SceneManager.sceneLoaded += OnSceneLoaded;
+                    Logging.Warning("LoginTeleporter not found");
                 }
-
-                if (!zoneSceneLoadCompletionSource.Task.IsCompleted) await zoneSceneLoadCompletionSource.Task;
-                if (useSceneLoadAction) SceneManager.sceneLoaded -= OnSceneLoaded;
             }
-            else
+            else if (!Data.Zones.Contains(GTZone.customMaps))
             {
-                Logging.Info("Not using scenes (yay)");
-            }
+                ZoneManagement.SetActiveZones(Data.Zones);
+                var zoneDataWithScene = zoneData.Where(zd => !string.IsNullOrEmpty(zd.sceneName));
+                if (zoneDataWithScene.Any())
+                {
+                    Logging.Info("Using scenes");
 
+                    TaskCompletionSource<bool> zoneSceneLoadCompletionSource = new();
+                    Dictionary<string, bool> loadedScenes = zoneDataWithScene.ToDictionary(zd => zd.sceneName, zd => false);
+
+                    int countLoaded = SceneManager.sceneCount;
+                    for (int i = 0; i < countLoaded; i++)
+                    {
+                        var scene = SceneManager.GetSceneAt(i);
+                        if (loadedScenes.ContainsKey(scene.name))
+                        {
+                            loadedScenes[scene.name] = scene.isLoaded;
+                        }
+                    }
+
+                    bool useSceneLoadAction = false;
+                    void OnSceneLoaded(Scene loadedScene, LoadSceneMode mode)
+                    {
+                        if (loadedScenes.ContainsKey(loadedScene.name))
+                        {
+                            loadedScenes[loadedScene.name] = true;
+                            Logging.Info($"Scene loaded {loadedScene.name} under mode {mode}");
+
+                            Logging.Info($"New dictionary: {string.Join(Environment.NewLine, loadedScenes)}");
+
+                            if (loadedScenes.All(dict => dict.Value == true))
+                            {
+                                Logging.Info("New check is futhfilled");
+                                zoneSceneLoadCompletionSource.SetResult(true);
+                            }
+                        }
+                    }
+
+                    Logging.Info($"Initial dictionary: {string.Join(Environment.NewLine, loadedScenes)}");
+
+                    if (loadedScenes.All(dict => dict.Value == true))
+                    {
+                        Logging.Info("Initial check is futhfilled");
+                        zoneSceneLoadCompletionSource.SetResult(true);
+                    }
+                    else
+                    {
+                        Logging.Info("Waiting for scenes to load");
+
+                        useSceneLoadAction = true;
+                        SceneManager.sceneLoaded += OnSceneLoaded;
+                    }
+
+                    if (!zoneSceneLoadCompletionSource.Task.IsCompleted) await zoneSceneLoadCompletionSource.Task;
+                    if (useSceneLoadAction) SceneManager.sceneLoaded -= OnSceneLoaded;
+                }
+                else
+                {
+                    Logging.Info("Not using scenes (yay)");
+                }
+            }
+            
             Logging.Info("Step 2: Setiing shader settings as active instance");
 
             Data.ShaderSettings.BecomeActiveInstance(false);
