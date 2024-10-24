@@ -203,8 +203,8 @@ namespace GorillaRichPresence.Behaviours
                     TaskCompletionSource<bool> zoneSceneLoadCompletionSource = new();
                     Dictionary<string, bool> loadedScenes = zoneDataWithScene.ToDictionary(zd => zd.sceneName, zd => false);
 
-                    int countLoaded = SceneManager.sceneCount;
-                    for (int i = 0; i < countLoaded; i++)
+                    int zoneCheckSceneCount = SceneManager.sceneCount;
+                    for (int i = 0; i < zoneCheckSceneCount; i++)
                     {
                         var scene = SceneManager.GetSceneAt(i);
                         if (loadedScenes.ContainsKey(scene.name))
@@ -260,30 +260,31 @@ namespace GorillaRichPresence.Behaviours
             Data.ShaderSettings.BecomeActiveInstance(false);
 
             // activate low effort zone
-            Logging.Info("Step 3: Find low effort zone (if assigned)");
+            Logging.Info("Step 3: Applying low effort zone");
 
-            if (!string.IsNullOrEmpty(Data.LowEffortZone))
+            if (string.IsNullOrEmpty(Data.LowEffortZone))
             {
-                Logging.Info("Searching for low effort zone (assigned)");
-                bool hasFoundZone = false;
-                int countLoaded = SceneManager.sceneCount;
-                for (int i = countLoaded - 1; i >= 0; i--)
+                Data.LowEffortZone = "TreeRoomSide";
+            }
+
+            bool hasFoundZone = false;
+            int countLoaded = SceneManager.sceneCount;
+            for (int i = countLoaded - 1; i >= 0; i--)
+            {
+                var scene = SceneManager.GetSceneAt(i);
+                var lezArray = scene.GetComponentsInHierarchy<LowEffortZone>(false);
+                LowEffortZone lowEffortZone = lezArray.FirstOrDefault(lez => lez.name == Data.LowEffortZone);
+                if (lowEffortZone)
                 {
-                    var scene = SceneManager.GetSceneAt(i);
-                    var lezArray = scene.GetComponentsInHierarchy<LowEffortZone>(false);
-                    LowEffortZone lowEffortZone = lezArray.FirstOrDefault(lez => lez.name == Data.LowEffortZone);
-                    if (lowEffortZone)
-                    {
-                        Logging.Info("Low effort zone applied");
-                        lowEffortZone.OnBoxTriggered();
-                        hasFoundZone = true;
-                        break;
-                    }
+                    Logging.Info("Low effort zone applied");
+                    lowEffortZone.OnBoxTriggered();
+                    hasFoundZone = true;
+                    break;
                 }
-                if (!hasFoundZone)
-                {
-                    Logging.Warning($"Low effort zone ({Data.LowEffortZone}) was not found");
-                }
+            }
+            if (!hasFoundZone)
+            {
+                Logging.Warning($"Low effort zone ({Data.LowEffortZone}) was not found");
             }
 
             // teleport to player
