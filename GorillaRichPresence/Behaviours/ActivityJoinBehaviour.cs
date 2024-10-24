@@ -1,10 +1,12 @@
-﻿using GorillaExtensions;
+﻿using ExitGames.Client.Photon;
+using GorillaExtensions;
 using GorillaLocomotion;
 using GorillaNetworking;
-using GorillaRichPresence.Interfaces;
+using GorillaRichPresence.Models;
 using GorillaRichPresence.Tools;
 using GorillaTag.Rendering;
 using HarmonyLib;
+using Photon.Pun;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -17,14 +19,11 @@ using UnityEngine.SceneManagement;
 namespace GorillaRichPresence.Behaviours
 {
     // [DisallowMultipleComponent]
-    public class ActivityJoinBehaviour : MonoBehaviour, IActivityJoinBase
+    public class ActivityJoinBehaviour : MonoBehaviour
     {
-        public string Secrets { get; set; }
-        public string ActivityRoomName { get; set; }
-        public string ActivityUserId { get; set; }
-        public GTZone[] ActivityZones { get; set; }
-        public string ActivityLowEffortZone { get; set; }
-        public ZoneShaderSettings ActivityShaderSettings { get; set; }
+        public ActivityJoinSecrets Secrets;
+
+        public ActivityJoinData Data;
 
         private bool restrictPlayer;
 
@@ -34,13 +33,17 @@ namespace GorillaRichPresence.Behaviours
 
         private readonly MethodInfo getZoneDataField = AccessTools.Method(typeof(ZoneManagement), "GetZoneData");
 
-        public void Conclude() => Destroy(this);
+        public void Awake()
+        {
+            PhotonNetwork.NetworkingClient.EventReceived += OnEvent;
+        }
 
         public void Start()
         {
+            Logging.Info("Start");
+
             playerRigidbody = Player.Instance.bodyCollider.attachedRigidbody;
 
-            InitializeData();
             JoinRoom();
         }
 
@@ -52,72 +55,81 @@ namespace GorillaRichPresence.Behaviours
             }
         }
 
-        public void InitializeData()
+        public void OnDestroy()
         {
-            if (string.IsNullOrEmpty(Secrets)) return;
-
-            object[] secretContents = Secrets.Split("\n");
-            ActivityRoomName = ((string)secretContents[0]).Trim();
-            ActivityUserId = ((string)secretContents[1]).Trim();
-            ActivityZones = ((string)secretContents[2]).Split('.').Select(str => (GTZone)Enum.Parse(typeof(GTZone), str)).ToArray();
-            ActivityLowEffortZone = ((string)secretContents[3]).Trim();
-            string shaderSettingName = (string)secretContents[4];
-            ActivityShaderSettings = shaderSettingName == ZoneShaderSettings.defaultsInstance.name
-                ?
-                    ZoneShaderSettings.defaultsInstance
-                : Player.Instance.gameObject.scene
-                .GetComponentsInHierarchy<GorillaTriggerBoxShaderSettings>()
-                .Select(GetShaderSettings)
-                .FirstOrDefault(settings => settings != null && settings.name == shaderSettingName) ?? ZoneShaderSettings.defaultsInstance;
+            PhotonNetwork.NetworkingClient.EventReceived -= OnEvent;
         }
 
         public async void JoinRoom()
         {
-            if (string.IsNullOrEmpty(Secrets)) return;
+            if (Secrets == null || string.IsNullOrEmpty(Secrets.Secrets)) return;
 
-            if (NetworkSystem.Instance.InRoom)
+            // If we are already in the room with the activity user, perform our original set of steps used to get to them
+            if (NetworkSystem.Instance.InRoom && NetworkSystem.Instance.RoomName == Secrets.RoomName)
             {
-                await NetworkSystem.Instance.ReturnToSinglePlayer();
-            }
-
-            NetworkSystem.Instance.OnMultiplayerStarted += OnMultiplayerStarted;
-            NetworkSystem.Instance.OnReturnedToSinglePlayer += OnReturnedToSinglePlayer;
-
-            do
-            {
-                await Task.Delay(500);
-            }
-            while (NetworkSystem.Instance.netState != NetSystemState.Idle);
-
-            Logging.Info("Ready to join room (3000 ms / 3 sec delay)");
-            await Task.Delay(3000);
-
-            Logging.Info($"Joining room '{ActivityRoomName}'");
-
-            PhotonNetworkController.Instance.AttemptToJoinSpecificRoom(ActivityRoomName, JoinType.Solo);
-        }
-
-        public void OnDestroy()
-        {
-            NetworkSystem.Instance.OnMultiplayerStarted -= OnMultiplayerStarted;
-        }
-
-        public async void OnMultiplayerStarted()
-        {
-            Logging.Info($"Room joined");
-
-            await Task.Delay(150);
-
-            string currentRoomName = NetworkSystem.Instance.RoomName;
-
-            if (currentRoomName != ActivityRoomName)
-            {
-                Logging.Warning($"We are not in the right room (currently in {currentRoomName}, tried to join {ActivityRoomName}) leaving room");
-                await NetworkSystem.Instance.ReturnToSinglePlayer();
+                HandleRoomEntry(false);
                 return;
             }
 
-            NetPlayer activityPlayer = null;
+            if (!NetworkSystem.Instance.InRoom)
+            {
+                bool wasIdle = true;
+
+                do
+                {
+                    wasIdle = false;
+                    await Task.Delay(500);
+                }
+                while (NetworkSystem.Instance.netState != NetSystemState.Idle);
+
+                if (!wasIdle)
+                {
+                    // Likely signals to the player initially booting up their game
+                    Logging.Info("Set to join room (waiting for a little bit to wait for mods to load)");
+                    await Task.Delay(2000);
+                }
+                else
+                {
+                    Logging.Info("Set to join room");
+                }
+            }
+
+            Logging.Info($"Joining room '{Secrets.RoomName}'");
+            await PhotonNetworkController.Instance.AttemptToJoinSpecificRoomAsync(Secrets.RoomName, NetworkSystem.Instance.InRoom ? JoinType.FollowingParty : JoinType.Solo, async (NetJoinResult result) =>
+            {
+                if (result == 0)
+                {
+                    // Give the game a bit to load stuff
+                    await Task.Delay(200);
+
+                    Logging.Info("Applying activity join behaviour");
+                    HandleRoomEntry();
+                    return;
+                }
+
+                if (result == NetJoinResult.Failed_Other)
+                {
+                    // Retry the join room process
+                    JoinRoom();
+                    return;
+                }
+
+                Logging.Warning($"NetJoinResult is {result}");
+                Destroy(this);
+            });
+        }
+
+        public async void HandleRoomEntry(bool doRoomNameCheck = true)
+        {
+            if (doRoomNameCheck && NetworkSystem.Instance.RoomName != Secrets.RoomName)
+            {
+                Logging.Warning("incorrect room");
+                await NetworkSystem.Instance.ReturnToSinglePlayer();
+                Destroy(this);
+                return;
+            }
+
+            NetPlayer targetPlayer = null;
 
             for (int i = 0; i < 2; i++)
             {
@@ -126,40 +138,52 @@ namespace GorillaRichPresence.Behaviours
                 NetPlayer[] currentPlayers = NetworkSystem.Instance.AllNetPlayers;
                 foreach (NetPlayer player in currentPlayers)
                 {
-                    if (player.UserId == ActivityUserId)
+                    if (player.UserId == Secrets.PlayerId)
                     {
-                        activityPlayer = player;
+                        targetPlayer = player;
                         break;
                     }
                 }
             }
 
-            if (activityPlayer == null)
+            if (targetPlayer == null)
             {
-                Logging.Warning($"Our activity user is not in the room ({ActivityUserId})");
-                Conclude();
+                Logging.Warning("player not found");
+                Destroy(this);
                 return;
             }
 
-            Logging.Info("Locating player to activity user");
+            Data = new ActivityJoinData()
+            {
+                Player = targetPlayer
+            };
 
-            var zoneData = ActivityZones.Select(GetZoneData).ToArray();
+            Photon.Realtime.RaiseEventOptions raiseEventOptions = new()
+            {
+                TargetActors = [targetPlayer.ActorNumber]
+            };
 
-            var tcs = new TaskCompletionSource<bool>();
+            PhotonNetwork.RaiseEvent((int)ActivityJoinEventCode.RequestActivityData, new object[] { }, raiseEventOptions, SendOptions.SendReliable);
+            Logging.Info($"Sending to {targetPlayer.NickName}");
+        }
+
+        public async void HandleRoomData()
+        {
+            var zoneData = Data.Zones.Select(GetZoneData).ToArray();
 
             Logging.Info("Step 1: Set zones");
 
+            // enable movement restrictions
             restrictPlayer = true;
-            // Player.Instance.InReportMenu = true;
             Player.Instance.disableMovement = true;
 
-            ZoneManagement.SetActiveZones(ActivityZones);
+            ZoneManagement.SetActiveZones(Data.Zones);
             var zoneDataWithScene = zoneData.Where(zd => !string.IsNullOrEmpty(zd.sceneName));
             if (zoneDataWithScene.Any())
             {
                 Logging.Info("Using scenes");
 
-                TaskCompletionSource<bool> tsp = new();
+                TaskCompletionSource<bool> zoneSceneLoadCompletionSource = new();
                 Dictionary<string, bool> loadedScenes = zoneDataWithScene.ToDictionary(zd => zd.sceneName, zd => false);
 
                 int countLoaded = SceneManager.sceneCount;
@@ -185,7 +209,7 @@ namespace GorillaRichPresence.Behaviours
                         if (loadedScenes.All(dict => dict.Value == true))
                         {
                             Logging.Info("New check is futhfilled");
-                            tsp.SetResult(true);
+                            zoneSceneLoadCompletionSource.SetResult(true);
                         }
                     }
                 }
@@ -195,7 +219,7 @@ namespace GorillaRichPresence.Behaviours
                 if (loadedScenes.All(dict => dict.Value == true))
                 {
                     Logging.Info("Initial check is futhfilled");
-                    tsp.SetResult(true);
+                    zoneSceneLoadCompletionSource.SetResult(true);
                 }
                 else
                 {
@@ -205,7 +229,7 @@ namespace GorillaRichPresence.Behaviours
                     SceneManager.sceneLoaded += OnSceneLoaded;
                 }
 
-                if (!tsp.Task.IsCompleted) await tsp.Task;
+                if (!zoneSceneLoadCompletionSource.Task.IsCompleted) await zoneSceneLoadCompletionSource.Task;
                 if (useSceneLoadAction) SceneManager.sceneLoaded -= OnSceneLoaded;
             }
             else
@@ -215,65 +239,98 @@ namespace GorillaRichPresence.Behaviours
 
             Logging.Info("Step 2: Setiing shader settings as active instance");
 
-            ActivityShaderSettings.BecomeActiveInstance(false);
+            Data.ShaderSettings.BecomeActiveInstance(false);
 
             // activate low effort zone
             Logging.Info("Step 3: Find low effort zone (if assigned)");
 
-            if (!string.IsNullOrEmpty(ActivityLowEffortZone))
+            if (!string.IsNullOrEmpty(Data.LowEffortZone))
             {
                 Logging.Info("Searching for low effort zone (assigned)");
-
+                bool hasFoundZone = false;
                 int countLoaded = SceneManager.sceneCount;
                 for (int i = countLoaded - 1; i >= 0; i--)
                 {
                     var scene = SceneManager.GetSceneAt(i);
                     var lezArray = scene.GetComponentsInHierarchy<LowEffortZone>(false);
-                    LowEffortZone lowEffortZone = lezArray.FirstOrDefault(lez => lez.name == ActivityLowEffortZone);
-
+                    LowEffortZone lowEffortZone = lezArray.FirstOrDefault(lez => lez.name == Data.LowEffortZone);
                     if (lowEffortZone)
                     {
                         Logging.Info("Low effort zone applied");
-
                         lowEffortZone.OnBoxTriggered();
-
+                        hasFoundZone = true;
                         break;
                     }
+                }
+                if (!hasFoundZone)
+                {
+                    Logging.Warning($"Low effort zone ({Data.LowEffortZone}) was not found");
                 }
             }
 
             // teleport to player
             Logging.Info("Step 4: Teleport to activity user");
 
+            // disable movement restrictions
             restrictPlayer = false;
-            // Player.Instance.InReportMenu = false;
             Player.Instance.disableMovement = false;
 
-            Main.Instance.StartCoroutine(TeleportPlayer(GorillaGameManager.StaticFindRigForPlayer(activityPlayer), 1f, 1f));
+            Main.Instance.StartCoroutine(TeleportPlayer(GorillaGameManager.StaticFindRigForPlayer(Data.Player), 1f, 0.8f));
 
-            Logging.Info("All done! :3");
+            Logging.Info("Completed steps");
 
-            Conclude();
+            Destroy(this);
+        }
+
+        public void OnEvent(EventData data)
+        {
+            if (data.Code != (int)ActivityJoinEventCode.SendActivityData) return;
+
+            Logging.Info($"We heard back from {Data.Player.NickName}!!");
+
+            object[] eventData = (object[])data.CustomData;
+
+            Data.Zones = ((string)eventData[0]).Split('.').Select(str => (GTZone)Enum.Parse(typeof(GTZone), str)).ToArray();
+            Data.LowEffortZone = ((string)eventData[1]).Trim();
+            string shaderSettingName = (string)eventData[2];
+            Data.ShaderSettings = shaderSettingName == ZoneShaderSettings.defaultsInstance.name
+                ?
+                    ZoneShaderSettings.defaultsInstance
+                : Player.Instance.gameObject.scene
+                .GetComponentsInHierarchy<GorillaTriggerBoxShaderSettings>()
+                .Select(GetShaderSettings)
+                .FirstOrDefault(settings => settings != null && settings.name == shaderSettingName) ?? ZoneShaderSettings.defaultsInstance;
+
+            HandleRoomData();
         }
 
         public IEnumerator TeleportPlayer(VRRig rig, float duration, float moveDuration)
         {
-            float elapsed = 0f;
-            float distanceOrigin = 1.8f;
-
             Transform head = rig.headMesh.transform;
-            Transform body = head.parent;
 
-            Player.Instance.Turn(body.rotation.eulerAngles.y - Player.Instance.headCollider.transform.rotation.eulerAngles.y);
+            // Rotation
+            Quaternion quaternion = Quaternion.LookRotation(head.transform.position - Player.Instance.headCollider.transform.position);
+            Player.Instance.Turn(quaternion.eulerAngles.y - Player.Instance.headCollider.transform.rotation.eulerAngles.y);
 
+            // Position
+            Vector3 offset = Player.Instance.transform.position - head.position, position;
+            float distanceOrigin = 3f;
+            if (Physics.Raycast(head.position, offset, out RaycastHit hitInfo, distanceOrigin, Player.Instance.locomotionEnabledLayers))
+            {
+                distanceOrigin = Mathf.Clamp(Vector3.Distance(head.position, hitInfo.point) - (Player.Instance.bodyCollider.radius + 0.1f), 0f, distanceOrigin);
+            }
+
+            // Scale
+            Player.Instance.GetComponent<SizeManager>().enabled = false;
+            Player.Instance.scale = rig.scaleFactor;
+
+            float elapsed = 0f;
             while (elapsed < duration)
             {
-                Vector3 position = (head.position + (Vector3.up * Mathf.Lerp(0.3f, 0f, elapsed / moveDuration)) + (-body.forward * AnimationCurves.EaseInExpo.Evaluate(Mathf.Lerp(distanceOrigin, 0.25f, elapsed / moveDuration)))) * rig.scaleFactor;
+                position = Vector3.ClampMagnitude(offset, Mathf.Lerp(distanceOrigin, 0.8f, AnimationCurves.EaseOutExpo.Evaluate(elapsed / moveDuration))) + head.position + (Vector3.up * Mathf.Lerp(0.6f, 0.2f, elapsed / moveDuration));
+                Vector3 adjustedPosition = position - Player.Instance.bodyCollider.transform.position + Player.Instance.transform.position;
 
-                position -= Player.Instance.bodyCollider.transform.position;
-                position += Player.Instance.transform.position;
-
-                Player.Instance.TeleportTo(position, Player.Instance.transform.rotation);
+                Player.Instance.TeleportTo(adjustedPosition, Player.Instance.transform.rotation);
                 Player.Instance.bodyCollider.attachedRigidbody.velocity = Vector3.zero;
 
                 yield return null;
@@ -281,11 +338,6 @@ namespace GorillaRichPresence.Behaviours
             }
 
             yield break;
-        }
-
-        public void OnReturnedToSinglePlayer()
-        {
-            Conclude();
         }
 
         public ZoneShaderSettings GetShaderSettings(GorillaTriggerBoxShaderSettings box) => (ZoneShaderSettings)zoneShaderSettingsField.GetValue(box);

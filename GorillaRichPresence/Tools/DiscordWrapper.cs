@@ -1,6 +1,4 @@
 ﻿using Discord;
-using GorillaRichPresence.Patches;
-using GorillaTag.Rendering;
 using System;
 using System.Text;
 using System.Threading;
@@ -139,9 +137,6 @@ namespace GorillaRichPresence.Tools
                     StringBuilder secret = new();
                     secret.AppendLine(NetworkSystem.Instance.RoomName);
                     secret.AppendLine(NetworkSystem.Instance.LocalPlayer.UserId);
-                    secret.AppendLine(string.Join('.', ZoneManagement.instance.activeZones));
-                    secret.AppendLine(LowEffortZonePatch.LowEffortZoneName);
-                    secret.AppendLine(ZoneShaderSettings.hasActiveInstance ? ZoneShaderSettings.activeInstance.name : ZoneShaderSettings.defaultsInstance.name);
 
                     activity.Secrets.Join = secret.ToString();
                     activity.Secrets.Match = "foo match";

@@ -1,11 +1,17 @@
 ﻿using Discord;
+using ExitGames.Client.Photon;
 using GorillaGameModes;
 using GorillaNetworking;
 using GorillaRichPresence.Extensions;
+using GorillaRichPresence.Models;
+using GorillaRichPresence.Patches;
 using GorillaRichPresence.Tools;
 using GorillaRichPresence.Utils;
+using GorillaTag.Rendering;
 using GorillaTagScripts.ModIO;
 using ModIO;
+using Photon.Pun;
+using Photon.Realtime;
 using System;
 using System.Linq;
 using UnityEngine;
@@ -40,6 +46,7 @@ namespace GorillaRichPresence.Behaviours
             NetworkSystem.Instance.OnPlayerJoined += UpdateMultiplayer;
             NetworkSystem.Instance.OnPlayerLeft += UpdateMultiplayer;
             NetworkSystem.Instance.OnReturnedToSinglePlayer += UpdateSingleplayer;
+            PhotonNetwork.NetworkingClient.EventReceived += OnEvent;
 
             // Add mod.io map events
             GameEvents.OnModIOLoggedIn.AddListener(new UnityAction(OnModIOLoggedIn));
@@ -77,12 +84,12 @@ namespace GorillaRichPresence.Behaviours
 
         private void OnActivityJoin(string secrets)
         {
-            if (TryGetComponent(out ActivityJoinBehaviour component))
+            if (GetComponent<ActivityJoinBehaviour>())
             {
-                Destroy(component);
+                Destroy(GetComponent<ActivityJoinBehaviour>());
             }
 
-            gameObject.AddComponent<ActivityJoinBehaviour>().Secrets = secrets;
+            gameObject.AddComponent<ActivityJoinBehaviour>().Secrets = new ActivityJoinSecrets(secrets);
         }
 
         // Profile
@@ -237,6 +244,29 @@ namespace GorillaRichPresence.Behaviours
             });
 
             DiscordWrapper.UpdateActivity();
+        }
+
+        public void OnEvent(EventData data)
+        {
+            if (data.Code != (int)ActivityJoinEventCode.RequestActivityData) return;
+
+            Logging.Info("Recieved data from a particular actor requesting activity data");
+
+            object[] content =
+            [
+                string.Join('.', ZoneManagement.instance.activeZones),
+                LowEffortZonePatch.LowEffortZoneName,
+                ZoneShaderSettings.hasActiveInstance ? ZoneShaderSettings.activeInstance.name : ZoneShaderSettings.defaultsInstance.name,
+                string.Join('.', GorillaComputer.instance.allowedMapsToJoin)
+            ];
+
+            RaiseEventOptions raiseEventOptions = new()
+            {
+                TargetActors = [data.Sender]
+            };
+
+            PhotonNetwork.RaiseEvent((int)ActivityJoinEventCode.SendActivityData, content, raiseEventOptions, SendOptions.SendReliable);
+            Logging.Info("Send data reliably");
         }
     }
 }
