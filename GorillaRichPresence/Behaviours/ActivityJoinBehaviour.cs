@@ -266,7 +266,7 @@ namespace GorillaRichPresence.Behaviours
                     Logging.Info("Not using scenes (yay)");
                 }
             }
-            
+
             Logging.Info("Setting activity host shader settings as active instance");
 
             Data.ShaderSettings.BecomeActiveInstance(false);
