@@ -260,10 +260,15 @@ namespace GorillaRichPresence.Behaviours
         {
             if (data.Code != (int)ActivityJoinEventCode.RequestActivityData) return;
 
+            object[] eventData = (object[])data.CustomData;
+
+            if (eventData[0] is not int || ((int)eventData[0]) != "GRP.RAD".GetStaticHash()) return;
+
             Logging.Info("Recieved data from a particular actor requesting activity data");
 
             object[] content =
             [
+                "GRP.SAD".GetStaticHash(),
                 string.Join('.', ZoneManagement.instance.activeZones),
                 LowEffortZonePatch.LowEffortZoneName,
                 ZoneShaderSettings.hasActiveInstance ? ZoneShaderSettings.activeInstance.name : ZoneShaderSettings.defaultsInstance.name,

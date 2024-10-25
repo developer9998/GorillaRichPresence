@@ -4,6 +4,7 @@ using GorillaLocomotion;
 using GorillaNetworking;
 using GorillaRichPresence.Extensions;
 using GorillaRichPresence.Models;
+using GorillaRichPresence.Patches;
 using GorillaRichPresence.Tools;
 using GorillaTag.Rendering;
 using HarmonyLib;
@@ -168,7 +169,12 @@ namespace GorillaRichPresence.Behaviours
                 TargetActors = [targetPlayer.ActorNumber]
             };
 
-            PhotonNetwork.RaiseEvent((int)ActivityJoinEventCode.RequestActivityData, new object[] { }, raiseEventOptions, SendOptions.SendReliable);
+            object[] content =
+            [
+                "GRP.RAD".GetStaticHash(),
+            ];
+
+            PhotonNetwork.RaiseEvent((int)ActivityJoinEventCode.RequestActivityData, content, raiseEventOptions, SendOptions.SendReliable);
             Logging.Info($"Player of activity host found ({targetPlayer.NickName}) data request sent");
         }
 
@@ -321,9 +327,11 @@ namespace GorillaRichPresence.Behaviours
 
             object[] eventData = (object[])data.CustomData;
 
-            Data.Zones = ((string)eventData[0]).Split('.').Select(str => (GTZone)Enum.Parse(typeof(GTZone), str)).ToArray();
-            Data.LowEffortZone = ((string)eventData[1]).Trim();
-            string shaderSettingName = (string)eventData[2];
+            if (eventData[0] is not int || ((int)eventData[0]) != "GRP.SAD".GetStaticHash()) return;
+
+            Data.Zones = ((string)eventData[1]).Split('.').Select(str => (GTZone)Enum.Parse(typeof(GTZone), str)).ToArray();
+            Data.LowEffortZone = ((string)eventData[2]).Trim();
+            string shaderSettingName = (string)eventData[3];
             Data.ShaderSettings = shaderSettingName == ZoneShaderSettings.defaultsInstance.name ? ZoneShaderSettings.defaultsInstance : Player.Instance.gameObject.scene.GetComponentsInHierarchy<GorillaTriggerBoxShaderSettings>().Select(GetShaderSettings).FirstOrDefault(settings => settings != null && settings.name == shaderSettingName) ?? ZoneShaderSettings.defaultsInstance;
 
             HandleRoomData();

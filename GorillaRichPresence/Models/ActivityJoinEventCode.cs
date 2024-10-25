@@ -2,7 +2,7 @@
 {
     internal enum ActivityJoinEventCode
     {
-        RequestActivityData,
-        SendActivityData
+        RequestActivityData = 145,
+        SendActivityData = 146
     }
 }
