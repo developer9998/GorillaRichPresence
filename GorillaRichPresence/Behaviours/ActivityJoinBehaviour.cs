@@ -2,6 +2,7 @@
 using GorillaExtensions;
 using GorillaLocomotion;
 using GorillaNetworking;
+using GorillaRichPresence.Extensions;
 using GorillaRichPresence.Models;
 using GorillaRichPresence.Tools;
 using GorillaTag.Rendering;
@@ -40,7 +41,7 @@ namespace GorillaRichPresence.Behaviours
 
         public void Start()
         {
-            Logging.Info("Start");
+            this.LogCurrentMethod();
 
             playerRigidbody = Player.Instance.bodyCollider.attachedRigidbody;
 
@@ -63,6 +64,8 @@ namespace GorillaRichPresence.Behaviours
         public async void JoinRoom()
         {
             if (Secrets == null || string.IsNullOrEmpty(Secrets.Secrets)) return;
+
+            this.LogCurrentMethod();
 
             // If we are already in the room with the activity user, perform our original set of steps used to get to them
             if (NetworkSystem.Instance.InRoom && NetworkSystem.Instance.RoomName == Secrets.RoomName)
@@ -121,9 +124,11 @@ namespace GorillaRichPresence.Behaviours
 
         public async void HandleRoomEntry(bool doRoomNameCheck = true)
         {
+            this.LogCurrentMethod();
+
             if (doRoomNameCheck && NetworkSystem.Instance.RoomName != Secrets.RoomName)
             {
-                Logging.Warning("incorrect room");
+                Logging.Warning($"Currently in wrong room ({NetworkSystem.Instance.RoomName}, expecting {Secrets.RoomName})");
                 await NetworkSystem.Instance.ReturnToSinglePlayer();
                 Destroy(this);
                 return;
@@ -148,7 +153,7 @@ namespace GorillaRichPresence.Behaviours
 
             if (targetPlayer == null)
             {
-                Logging.Warning("player not found");
+                Logging.Warning($"Player of activity host not found");
                 Destroy(this);
                 return;
             }
@@ -164,14 +169,16 @@ namespace GorillaRichPresence.Behaviours
             };
 
             PhotonNetwork.RaiseEvent((int)ActivityJoinEventCode.RequestActivityData, new object[] { }, raiseEventOptions, SendOptions.SendReliable);
-            Logging.Info($"Sending to {targetPlayer.NickName}");
+            Logging.Info($"Player of activity host found ({targetPlayer.NickName}) data request sent");
         }
 
         public async void HandleRoomData()
         {
+            this.LogCurrentMethod();
+
             var zoneData = Data.Zones.Select(GetZoneData).ToArray();
 
-            Logging.Info("Step 1: Set zones");
+            Logging.Info("Setting activity host zones");
 
             // enable movement restrictions
             restrictPlayer = true;
@@ -185,6 +192,7 @@ namespace GorillaRichPresence.Behaviours
                 var loginTeleporter = primaryObject.GetComponentInChildren<ModIOLoginTeleporter>(true);
                 if (loginTeleporter)
                 {
+                    Logging.Info("LoginTeleporter found, logging into the custom map system and teleporting to the virtual stump");
                     loginTeleporter.LoginAndTeleport();
                 }
                 else
@@ -194,11 +202,13 @@ namespace GorillaRichPresence.Behaviours
             }
             else if (!Data.Zones.Contains(GTZone.customMaps))
             {
+                Logging.Info($"Proceeding with regular zones ({string.Join(", ", Data.Zones)}");
+
                 ZoneManagement.SetActiveZones(Data.Zones);
                 var zoneDataWithScene = zoneData.Where(zd => !string.IsNullOrEmpty(zd.sceneName));
                 if (zoneDataWithScene.Any())
                 {
-                    Logging.Info("Using scenes");
+                    Logging.Info("Using scenes to load a zone");
 
                     TaskCompletionSource<bool> zoneSceneLoadCompletionSource = new();
                     Dictionary<string, bool> loadedScenes = zoneDataWithScene.ToDictionary(zd => zd.sceneName, zd => false);
@@ -221,26 +231,28 @@ namespace GorillaRichPresence.Behaviours
                             loadedScenes[loadedScene.name] = true;
                             Logging.Info($"Scene loaded {loadedScene.name} under mode {mode}");
 
-                            Logging.Info($"New dictionary: {string.Join(Environment.NewLine, loadedScenes)}");
-
                             if (loadedScenes.All(dict => dict.Value == true))
                             {
-                                Logging.Info("New check is futhfilled");
+                                Logging.Info("All zone scenes are now loaded");
                                 zoneSceneLoadCompletionSource.SetResult(true);
+                            }
+                            else
+                            {
+                                Logging.Info("Waiting for scenes to load");
+                                Logging.Info(string.Join(Environment.NewLine, loadedScenes));
                             }
                         }
                     }
 
-                    Logging.Info($"Initial dictionary: {string.Join(Environment.NewLine, loadedScenes)}");
-
                     if (loadedScenes.All(dict => dict.Value == true))
                     {
-                        Logging.Info("Initial check is futhfilled");
+                        Logging.Info("All zone scenes were loaded based on initial dictionary");
                         zoneSceneLoadCompletionSource.SetResult(true);
                     }
                     else
                     {
                         Logging.Info("Waiting for scenes to load");
+                        Logging.Info(string.Join(Environment.NewLine, loadedScenes));
 
                         useSceneLoadAction = true;
                         SceneManager.sceneLoaded += OnSceneLoaded;
@@ -255,12 +267,12 @@ namespace GorillaRichPresence.Behaviours
                 }
             }
             
-            Logging.Info("Step 2: Setiing shader settings as active instance");
+            Logging.Info("Setting activity host shader settings as active instance");
 
             Data.ShaderSettings.BecomeActiveInstance(false);
 
             // activate low effort zone
-            Logging.Info("Step 3: Applying low effort zone");
+            Logging.Info("Triggering activity host low effort zone");
 
             if (string.IsNullOrEmpty(Data.LowEffortZone))
             {
@@ -288,7 +300,7 @@ namespace GorillaRichPresence.Behaviours
             }
 
             // teleport to player
-            Logging.Info("Step 4: Teleport to activity user");
+            Logging.Info("Teleporting to player of activity user");
 
             // disable movement restrictions
             restrictPlayer = false;
@@ -296,7 +308,7 @@ namespace GorillaRichPresence.Behaviours
 
             Main.Instance.StartCoroutine(TeleportPlayer(GorillaGameManager.StaticFindRigForPlayer(Data.Player), 1f, 0.8f));
 
-            Logging.Info("Completed steps");
+            Logging.Info("Concluded! Have fun with your group");
 
             Destroy(this);
         }
@@ -305,7 +317,7 @@ namespace GorillaRichPresence.Behaviours
         {
             if (data.Code != (int)ActivityJoinEventCode.SendActivityData) return;
 
-            Logging.Info($"We heard back from {Data.Player.NickName}!!");
+            Logging.Info("Player of activity host has been reached with data sent from their end");
 
             object[] eventData = (object[])data.CustomData;
 
@@ -349,6 +361,8 @@ namespace GorillaRichPresence.Behaviours
                 yield return null;
                 elapsed += Time.deltaTime;
             }
+
+            Player.Instance.GetComponent<SizeManager>().enabled = true;
 
             yield break;
         }
