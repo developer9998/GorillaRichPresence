@@ -111,12 +111,14 @@ namespace GorillaRichPresence.Behaviours
                     return;
                 }
 
+                /*
                 if (result == NetJoinResult.Failed_Other)
                 {
                     // Retry the join room process
                     JoinRoom();
                     return;
                 }
+                */
 
                 Logging.Warning($"NetJoinResult is {result}");
                 Destroy(this);
@@ -130,8 +132,7 @@ namespace GorillaRichPresence.Behaviours
             if (doRoomNameCheck && NetworkSystem.Instance.RoomName != Secrets.RoomName)
             {
                 Logging.Warning($"Currently in wrong room ({NetworkSystem.Instance.RoomName}, expecting {Secrets.RoomName})");
-                await NetworkSystem.Instance.ReturnToSinglePlayer();
-                Destroy(this);
+                JoinRoom();
                 return;
             }
 
@@ -154,7 +155,8 @@ namespace GorillaRichPresence.Behaviours
 
             if (targetPlayer == null)
             {
-                Logging.Warning($"Player of activity host not found");
+                Logging.Warning($"Player of activity host not found, leaving room");
+                await NetworkSystem.Instance.ReturnToSinglePlayer();
                 Destroy(this);
                 return;
             }
@@ -326,6 +328,15 @@ namespace GorillaRichPresence.Behaviours
             Logging.Info("Player of activity host has been reached with data sent from their end");
 
             object[] eventData = (object[])data.CustomData;
+
+            try
+            {
+                Logging.Info(JsonUtility.ToJson(eventData, true));
+            }
+            catch
+            {
+
+            }
 
             if (eventData[0] is not int || ((int)eventData[0]) != "GRP.SAD".GetStaticHash()) return;
 

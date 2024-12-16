@@ -9,6 +9,7 @@ namespace GorillaRichPresence.Utils
             GTZone.skyJungle => "Clouds",
             GTZone.cityNoBuildings or GTZone.cityWithSkyJungle => "City",
             GTZone.customMaps => "Virtual Stump",
+            GTZone.monkeBlocks => "Monke Blocks",
             _ => zone.ToString().ToLower().ToTitleCase()
         };
 

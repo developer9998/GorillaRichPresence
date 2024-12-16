@@ -72,7 +72,7 @@ namespace GorillaRichPresence.Tools
 
             activityManager.OnActivityInvite += (ActivityActionType Type, ref User user, ref Activity activity2) =>
             {
-                Logging.Info($"OnActivityInvite {Type} {user.Id} {activity2.Name}");
+                Logging.Info($"OnActivityInvite {Type} {JsonUtility.ToJson(user, true)} {activity2.Name}");
 
                 Console.WriteLine("Received Invite Type: {0}, from User: {1}, with Activity Name: {2}", Type, user.Username, activity2.Name);
 

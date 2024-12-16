@@ -14,6 +14,7 @@ using Photon.Pun;
 using Photon.Realtime;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -182,48 +183,52 @@ namespace GorillaRichPresence.Behaviours
 
         private void UpdateMultiplayer(NetPlayer netPlayer) => UpdateMultiplayer(false);
 
-        private void UpdateMultiplayer(bool isInitialJoin)
+        private async void UpdateMultiplayer(bool isInitialJoin)
         {
             if (ZoneManagement.IsInZone(GTZone.customMaps))
             {
                 CheckCustomMap();
             }
 
-            DiscordWrapper.SetActivity((Activity Activity) =>
+            for(int i = 0; i < 2; i++)
             {
-                // Define game mode 
-                string currentGameMode = GameMode.ActiveGameMode?.GameModeName()?.ToLower()?.ToTitleCase() ?? "Null";
-
-                // Define modded status
-                string gameModeString = NetworkSystem.Instance.GameModeString;
-                bool isModdedRoom = gameModeString.Contains("MODDED_");
-
-                // Define queue
-                string[] queueNames = ["DEFAULT", "MINIGAMES", "COMPETITIVE"];
-                string currentQueue = queueNames.First(queue => queueNames.Contains(queue)).ToLower().ToTitleCase();
-
-                // Update description
-                Activity.State = NetworkSystem.Instance.SessionIsPrivate ? $"In {(Configuration.DisplayPrivateCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Private Room")}" : $"In {(Configuration.DisplayPublicCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Public Room")}";
-                Activity.Details = $"{currentQueue}, {(isModdedRoom ? "Modded " : "")}{currentGameMode}";
-
-                // Update party
-                Activity.Party.Size.CurrentSize = NetworkSystem.Instance.RoomPlayerCount;
-                Activity.Party.Size.MaxSize = PhotonNetworkController.Instance.GetRoomSize(gameModeString);
-                Activity.Party.Id = NetworkSystem.Instance.RoomName + NetworkSystem.Instance.CurrentRegion.Replace("/*", "").ToUpper();
-                Activity.Instance = true;
-
-                if (isInitialJoin)
+                DiscordWrapper.SetActivity((Activity Activity) =>
                 {
-                    // Update map
-                    (string image, string text) = ZoneUtils.GetActivityAssets(ActiveZones.Length == 0 ? PhotonNetworkController.Instance.StartZone : ActiveZones[0]);
-                    Activity.Assets.LargeImage = image;
-                    Activity.Assets.LargeText = text;
-                }
+                    // Define game mode 
+                    string currentGameMode = GameMode.ActiveGameMode?.GameModeName()?.ToLower()?.ToTitleCase() ?? "null";
 
-                return Activity;
-            });
+                    // Define modded status
+                    string gameModeString = NetworkSystem.Instance.GameModeString;
+                    bool isModdedRoom = gameModeString.Contains("MODDED_");
 
-            DiscordWrapper.UpdateActivity();
+                    // Define queue
+                    string[] queueNames = ["DEFAULT", "MINIGAMES", "COMPETITIVE"];
+                    string currentQueue = queueNames.First(queue => queueNames.Contains(queue)).ToLower().ToTitleCase();
+
+                    // Update description
+                    Activity.State = NetworkSystem.Instance.SessionIsPrivate ? $"In {(Configuration.DisplayPrivateCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Private Room")}" : $"In {(Configuration.DisplayPublicCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Public Room")}";
+                    Activity.Details = $"{currentQueue}, {(isModdedRoom ? "Modded " : "")}{currentGameMode}";
+
+                    // Update party
+                    Activity.Party.Size.CurrentSize = NetworkSystem.Instance.RoomPlayerCount;
+                    Activity.Party.Size.MaxSize = PhotonNetworkController.Instance.GetRoomSize(gameModeString);
+                    Activity.Party.Id = NetworkSystem.Instance.RoomName + NetworkSystem.Instance.CurrentRegion.Replace("/*", "").ToUpper();
+                    Activity.Instance = true;
+
+                    if (isInitialJoin)
+                    {
+                        // Update map
+                        (string image, string text) = ZoneUtils.GetActivityAssets(ActiveZones.Length == 0 ? PhotonNetworkController.Instance.StartZone : ActiveZones[0]);
+                        Activity.Assets.LargeImage = image;
+                        Activity.Assets.LargeText = text;
+                    }
+
+                    return Activity;
+                });
+
+                DiscordWrapper.UpdateActivity();
+                await Task.Delay(300);
+            }
         }
 
         private void UpdateSingleplayer()
