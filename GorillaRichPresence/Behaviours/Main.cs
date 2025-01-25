@@ -147,13 +147,13 @@ namespace GorillaRichPresence.Behaviours
                 ModId currentRoomMap = CustomMapManager.GetRoomMapId();
                 if (currentRoomMap != ModId.Null)
                 {
-                    ModIODataStore.GetModProfile(currentRoomMap, delegate (ModIORequestResultAnd<ModProfile> result)
+                    ModIODataStore.GetModProfile(currentRoomMap, (ModIORequestResultAnd<ModProfile> result) =>
                     {
-                        if (ModIODataStore.IsLoggedIn() && result.result.success)
+                        if (result.result.success && ModIODataStore.IsLoggedIn()) // second login check, just to be safe!
                         {
                             DiscordWrapper.SetActivity((Activity Activity) =>
                             {
-                                // Update map (cuustom map)
+                                // Update map (custom map)
                                 Activity.Assets.LargeImage = result.data.logoImage320x180.url;
                                 Activity.Assets.LargeText = $"{result.data.creator.username}: {result.data.name}";
 
@@ -162,7 +162,7 @@ namespace GorillaRichPresence.Behaviours
 
                             return;
                         }
-                    }, false);
+                    });
                 }
             }
 
