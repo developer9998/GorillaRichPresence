@@ -44,7 +44,7 @@ namespace GorillaRichPresence.Behaviours
             NetworkSystem.Instance.OnReturnedToSinglePlayer += UpdateSingleplayer;
 
             // Add mod.io map events
-            GameEvents.OnModIOLoggedIn.AddListener(new UnityAction(OnModIOLoggedIn));
+            ModIOManager.OnModIOLoggedIn.AddListener(new UnityAction(OnModIOLoggedIn));
             CustomMapManager.OnRoomMapChanged.AddListener(new UnityAction<ModId>(OnRoomMapChanged));
 
             // Add misc events
@@ -208,7 +208,7 @@ namespace GorillaRichPresence.Behaviours
 
                     // Update party
                     Activity.Party.Size.CurrentSize = NetworkSystem.Instance.RoomPlayerCount;
-                    Activity.Party.Size.MaxSize = PhotonNetworkController.Instance.GetRoomSize(gameModeString);
+                    Activity.Party.Size.MaxSize = NetworkSystem.Instance.config.MaxPlayerCount;
                     Activity.Party.Id = NetworkSystem.Instance.RoomName + NetworkSystem.Instance.CurrentRegion.Replace("/*", "").ToUpper();
                     Activity.Instance = true;
 
