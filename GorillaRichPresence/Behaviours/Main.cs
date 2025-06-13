@@ -1,16 +1,11 @@
 ﻿using Discord;
-using ExitGames.Client.Photon;
 using GorillaGameModes;
 using GorillaNetworking;
 using GorillaRichPresence.Extensions;
-using GorillaRichPresence.Models;
-using GorillaRichPresence.Patches;
 using GorillaRichPresence.Tools;
 using GorillaRichPresence.Utils;
-using GorillaTag.Rendering;
 using GorillaTagScripts.ModIO;
 using ModIO;
-using Photon.Pun;
 using Photon.Realtime;
 using System;
 using System.Linq;
@@ -44,10 +39,9 @@ namespace GorillaRichPresence.Behaviours
         {
             // Add network events
             NetworkSystem.Instance.OnMultiplayerStarted += UpdateMultiplayer;
-            NetworkSystem.Instance.OnPlayerJoined += UpdateMultiplayer;
-            NetworkSystem.Instance.OnPlayerLeft += UpdateMultiplayer;
+            NetworkSystem.Instance.OnPlayerJoined += UpdateMultiplayerWithPlayer;
+            NetworkSystem.Instance.OnPlayerLeft += UpdateMultiplayerWithPlayer;
             NetworkSystem.Instance.OnReturnedToSinglePlayer += UpdateSingleplayer;
-            PhotonNetwork.NetworkingClient.EventReceived += OnEvent;
 
             // Add mod.io map events
             GameEvents.OnModIOLoggedIn.AddListener(new UnityAction(OnModIOLoggedIn));
@@ -85,12 +79,15 @@ namespace GorillaRichPresence.Behaviours
 
         private void OnActivityJoin(string secrets)
         {
-            if (GetComponent<ActivityJoinBehaviour>())
-            {
-                Destroy(GetComponent<ActivityJoinBehaviour>());
-            }
+            object[] secret_content = secrets.Split("\n");
+            if (secret_content.Length < 2 
+                || secret_content[0] is not string room_id || string.IsNullOrEmpty(room_id) || string.IsNullOrWhiteSpace(room_id) 
+                || secret_content[1] is not string zone || string.IsNullOrEmpty(zone) || string.IsNullOrWhiteSpace(zone)) 
+                return;
 
-            gameObject.AddComponent<ActivityJoinBehaviour>().Secrets = new ActivityJoinSecrets(secrets);
+            Logging.Info(room_id);
+
+            Logging.Info(zone);
         }
 
         // Profile
@@ -142,14 +139,14 @@ namespace GorillaRichPresence.Behaviours
 
         private void CheckCustomMap()
         {
-            if (ModIODataStore.IsLoggedIn())
+            if (ModIOManager.IsLoggedIn())
             {
                 ModId currentRoomMap = CustomMapManager.GetRoomMapId();
                 if (currentRoomMap != ModId.Null)
                 {
-                    ModIODataStore.GetModProfile(currentRoomMap, (ModIORequestResultAnd<ModProfile> result) =>
+                    ModIOManager.GetModProfile(currentRoomMap, (ModIORequestResultAnd<ModProfile> result) =>
                     {
-                        if (result.result.success && ModIODataStore.IsLoggedIn()) // second login check, just to be safe!
+                        if (result.result.success && ModIOManager.IsLoggedIn()) // second login check, just to be safe!
                         {
                             DiscordWrapper.SetActivity((Activity Activity) =>
                             {
@@ -181,7 +178,7 @@ namespace GorillaRichPresence.Behaviours
 
         private void UpdateMultiplayer() => UpdateMultiplayer(true);
 
-        private void UpdateMultiplayer(NetPlayer netPlayer) => UpdateMultiplayer(false);
+        private void UpdateMultiplayerWithPlayer(NetPlayer netPlayer) => UpdateMultiplayer(false);
 
         private async void UpdateMultiplayer(bool isInitialJoin)
         {
@@ -259,34 +256,6 @@ namespace GorillaRichPresence.Behaviours
             });
 
             DiscordWrapper.UpdateActivity();
-        }
-
-        public void OnEvent(EventData data)
-        {
-            if (data.Code != (int)ActivityJoinEventCode.RequestActivityData) return;
-
-            object[] eventData = (object[])data.CustomData;
-
-            if (eventData[0] is not int || ((int)eventData[0]) != "GRP.RAD".GetStaticHash()) return;
-
-            Logging.Info("Recieved data from a particular actor requesting activity data");
-
-            object[] content =
-            [
-                "GRP.SAD".GetStaticHash(),
-                string.Join('.', ZoneManagement.instance.activeZones),
-                LowEffortZonePatch.LowEffortZoneName,
-                ZoneShaderSettings.hasActiveInstance ? ZoneShaderSettings.activeInstance.name : ZoneShaderSettings.defaultsInstance.name,
-                string.Join('.', GorillaComputer.instance.allowedMapsToJoin)
-            ];
-
-            RaiseEventOptions raiseEventOptions = new()
-            {
-                TargetActors = [data.Sender]
-            };
-
-            PhotonNetwork.RaiseEvent((int)ActivityJoinEventCode.SendActivityData, content, raiseEventOptions, SendOptions.SendReliable);
-            Logging.Info("Send data reliably");
         }
     }
 }

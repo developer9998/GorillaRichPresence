@@ -1,5 +1,8 @@
 ﻿using Discord;
+using Photon.Realtime;
 using System;
+using System.Collections.Generic;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using UnityEngine;
@@ -132,22 +135,20 @@ namespace GorillaRichPresence.Tools
         {
             if (updateSecrets)
             {
+                List<string> join_secrets = [];
                 if (NetworkSystem.Instance.InRoom)
                 {
-                    StringBuilder secret = new();
-                    secret.AppendLine(NetworkSystem.Instance.RoomName);
-                    secret.AppendLine(NetworkSystem.Instance.LocalPlayer.UserId);
+                    join_secrets.Add(NetworkSystem.Instance.RoomName);
+                    var authenticationValues = NetworkSystem.Instance.GetAuthenticationValues();
+                    var dictionary = (authenticationValues?.AuthPostData) as Dictionary<string, object>;
+                    if (dictionary != null && dictionary.TryGetValue("Zone", out object zone)) join_secrets.Add(zone.ToString());
+                }
 
-                    activity.Secrets.Join = secret.ToString();
-                    activity.Secrets.Match = "foo match";
-                    activity.Secrets.Spectate = "foo spectate";
-                }
-                else
-                {
-                    activity.Secrets.Join = string.Empty;
-                    activity.Secrets.Match = string.Empty;
-                    activity.Secrets.Spectate = string.Empty;
-                }
+                string join_secret_string = join_secrets.Count > 0 ? string.Join("\n", join_secrets) : string.Empty;
+                Logging.Info($"join secrets: {join_secret_string}");
+                activity.Secrets.Join = join_secret_string;
+                activity.Secrets.Match = string.IsNullOrEmpty(join_secret_string) ? string.Empty : "foo match";
+                activity.Secrets.Spectate = string.IsNullOrEmpty(join_secret_string) ? string.Empty : "foo spectate";
             }
 
             toUpload = true;

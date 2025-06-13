@@ -1,5 +1,8 @@
-﻿namespace GorillaRichPresence.Models
+﻿using System;
+
+namespace GorillaRichPresence.Models
 {
+    [Obsolete]
     internal enum ActivityJoinEventCode
     {
         RequestActivityData = 145,

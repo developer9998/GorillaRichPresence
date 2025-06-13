@@ -15,7 +15,7 @@ namespace GorillaRichPresence
             Configuration.Initialize(Config);
 
             Harmony.CreateAndPatchAll(typeof(Plugin).Assembly, Constants.Guid);
-            GorillaTagger.OnPlayerSpawned(() => new GameObject(typeof(Main).FullName, typeof(Main)));
+            GorillaTagger.OnPlayerSpawned(() => new GameObject(Constants.Name, typeof(Main)));
         }
     }
 }

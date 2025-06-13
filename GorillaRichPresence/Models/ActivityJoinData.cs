@@ -1,7 +1,9 @@
-﻿using GorillaTag.Rendering;
+﻿using System;
+using GorillaTag.Rendering;
 
 namespace GorillaRichPresence.Models
 {
+    [Obsolete]
     public class ActivityJoinData
     {
         public NetPlayer Player;
