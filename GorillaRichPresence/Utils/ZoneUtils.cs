@@ -12,9 +12,12 @@ namespace GorillaRichPresence.Utils
             GTZone.monkeBlocks => "Monke Blocks",
             GTZone.hoverboard => "Hoverpark",
             GTZone.arena => "Magmarena",
-            _ => zone.ToString().ToLower().ToTitleCase()
+            GTZone.mall => "Atrium",
+            GTZone.ghostReactor or GTZone.ghostReactorTunnel => "Ghost Reactor",
+            GTZone.monkeBlocksShared => "Share my Blocks",
+            _ => zone.GetName().ToTitleCase()
         };
 
-        public static (string image, string text) GetActivityAssets(GTZone zone) => (zone.ToString().ToLower(), ToString(zone).ToUpper());
+        public static (string image, string text) GetActivityAssets(GTZone zone) => (zone.GetName().ToLower(), ToString(zone));
     }
 }

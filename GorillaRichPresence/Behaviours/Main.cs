@@ -6,8 +6,6 @@ using GorillaRichPresence.Tools;
 using GorillaRichPresence.Utils;
 using GorillaTagScripts.ModIO;
 using ModIO;
-using Photon.Realtime;
-using System;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -31,8 +29,6 @@ namespace GorillaRichPresence.Behaviours
             {
                 Destroy(gameObject);
             }
-
-            this.LogCurrentMethod();
         }
 
         public void Start()
@@ -79,22 +75,71 @@ namespace GorillaRichPresence.Behaviours
 
         private void OnActivityJoin(string secrets)
         {
-            object[] secret_content = secrets.Split("\n");
-            if (secret_content.Length < 2 
-                || secret_content[0] is not string room_id || string.IsNullOrEmpty(room_id) || string.IsNullOrWhiteSpace(room_id) 
-                || secret_content[1] is not string zone || string.IsNullOrEmpty(zone) || string.IsNullOrWhiteSpace(zone)) 
+            object[] secretContent = secrets.Split("\n");
+
+            Logging.Info($"Secret: {string.Join(", ", secretContent)}");
+
+            if(secretContent.ElementAtOrDefault(0) is not string roomCode || string.IsNullOrEmpty(roomCode) || string.IsNullOrWhiteSpace(roomCode) || secretContent.ElementAtOrDefault(1) is not string zone || string.IsNullOrEmpty(zone) || string.IsNullOrWhiteSpace(zone))
+            {
+                Logging.Warning("Secrets are malformed");
                 return;
+            }
 
-            Logging.Info(room_id);
+            if (NetworkSystem.Instance.InRoom && NetworkSystem.Instance.RoomName == roomCode)
+            {
+                Logging.Warning("Already with player");
+                return;
+            }
 
-            Logging.Info(zone);
+            if (roomCode.StartsWith(GorillaComputer.instance.VStumpRoomPrepend))
+            {
+                Logging.Warning("Entering VStump rooms is unsupported for the time being");
+                return;
+            }
+
+            if (zone == "none")
+            {
+                Logging.Warning("Unidentified zone");
+                return;
+            }
+
+            if (zone != "private")
+            {
+                bool validZone = false;
+
+                foreach (GTZone gtzone in ZoneManagement.instance.activeZones)
+                {
+                    if (gtzone == GTZone.cave && zone.ToLower() == "mines")
+                    {
+                        validZone = true;
+                        break;
+                    }
+
+                    if (zone.ToLower().Contains(gtzone.GetName().ToLower()))
+                    {
+                        validZone = true;
+                        break;
+                    }
+                }
+
+                if (!validZone)
+                {
+                    Logging.Warning("Invalid zone");
+                    return;
+                }
+            }
+
+            Logging.Info($"Joining {roomCode}");
+
+            GorillaComputer.instance.roomToJoin = roomCode;
+            PhotonNetworkController.Instance.AttemptToJoinSpecificRoom(roomCode, JoinType.Solo);
         }
 
         // Profile
 
         public void ChangeName(string nickName)
         {
-            DiscordWrapper.SetActivity((Activity Activity) =>
+            DiscordWrapper.SetActivity(Activity =>
             {
                 Activity.Assets.SmallText = nickName;
                 return Activity;
@@ -187,32 +232,49 @@ namespace GorillaRichPresence.Behaviours
                 CheckCustomMap();
             }
 
-            for(int i = 0; i < 2; i++)
+            for (int i = 0; i < 2; i++)
             {
                 DiscordWrapper.SetActivity((Activity Activity) =>
                 {
                     // Define game mode 
-                    string currentGameMode = GameMode.ActiveGameMode?.GameModeName()?.ToLower()?.ToTitleCase() ?? "null";
 
-                    // Define modded status
                     string gameModeString = NetworkSystem.Instance.GameModeString;
-                    bool isModdedRoom = gameModeString.Contains("MODDED_");
+                    string gameTypeName = GameMode.FindGameModeInString(gameModeString);
+                    string networkZone = GorillaComputer.instance.primaryTriggersByZone.Keys.FirstOrDefault(zone => gameModeString.StartsWith(zone)) ?? (gameModeString.StartsWith(PhotonNetworkController.Instance.privateTrigger.networkZone) ? PhotonNetworkController.Instance.privateTrigger.networkZone : null);
 
-                    // Define queue
-                    string[] queueNames = ["DEFAULT", "MINIGAMES", "COMPETITIVE"];
-                    string currentQueue = queueNames.First(queue => queueNames.Contains(queue)).ToLower().ToTitleCase();
+                    string currentQueue = gameModeString;
+
+                    if (!string.IsNullOrEmpty(networkZone))
+                        currentQueue = currentQueue.RemoveStart(networkZone);
+
+                    if (!string.IsNullOrEmpty(gameTypeName))
+                        currentQueue = currentQueue.RemoveEnd(gameTypeName);
+
+                    bool isModdedRoom = false;
+
+                    if (currentQueue.EndsWith("modded_"))
+                    {
+                        isModdedRoom = true;
+                        currentQueue.RemoveEnd("modded_");
+                    }
+
+                    ModId currentRoomMap = CustomMapManager.GetRoomMapId();
+                    if (currentRoomMap != ModId.Null)
+                        currentQueue = currentQueue.Split(currentRoomMap.id.ToString()).FirstOrDefault() ?? currentQueue;
+
+                    string gameModeName = GameMode.gameModeKeyByName.TryGetValue(gameTypeName, out int key) && GameMode.gameModeTable.TryGetValue(key, out GorillaGameManager manager) ? manager.GameModeName() : gameTypeName;
 
                     // Update description
                     Activity.State = NetworkSystem.Instance.SessionIsPrivate ? $"In {(Configuration.DisplayPrivateCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Private Room")}" : $"In {(Configuration.DisplayPublicCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Public Room")}";
-                    Activity.Details = $"{currentQueue}, {(isModdedRoom ? "Modded " : "")}{currentGameMode}";
+                    Activity.Details = $"Playing{(isModdedRoom ? " Modded " : " ")}{gameModeName.ToTitleCase()} under {currentQueue.ToTitleCase()}";
 
                     // Update party
                     Activity.Party.Size.CurrentSize = NetworkSystem.Instance.RoomPlayerCount;
                     Activity.Party.Size.MaxSize = NetworkSystem.Instance.config.MaxPlayerCount;
-                    Activity.Party.Id = NetworkSystem.Instance.RoomName + NetworkSystem.Instance.CurrentRegion.Replace("/*", "").ToUpper();
+                    Activity.Party.Id = string.Concat(NetworkSystem.Instance.RoomName, NetworkSystem.Instance.CurrentRegion.Replace("/*", ""), NetworkSystem.Instance.MasterClient.ActorNumber);
                     Activity.Instance = true;
 
-                    if (isInitialJoin)
+                    if (isInitialJoin && currentRoomMap == ModId.Null)
                     {
                         // Update map
                         (string image, string text) = ZoneUtils.GetActivityAssets(ActiveZones.Length == 0 ? PhotonNetworkController.Instance.StartZone : ActiveZones[0]);
@@ -250,6 +312,7 @@ namespace GorillaRichPresence.Behaviours
                 Activity.Party.Size.CurrentSize = 0;
                 Activity.Party.Size.MaxSize = 0;
                 Activity.Party.Id = string.Empty;
+
                 Activity.Instance = false;
 
                 return Activity;
