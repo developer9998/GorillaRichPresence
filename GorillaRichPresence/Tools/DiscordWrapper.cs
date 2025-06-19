@@ -1,6 +1,5 @@
 ﻿using Discord;
 using GorillaInfoWatch;
-using GorillaInfoWatch.Behaviours;
 using GorillaInfoWatch.Models;
 using GorillaNetworking;
 using GorillaRichPresence.Models;
@@ -8,10 +7,7 @@ using GorillaRichPresence.Utils;
 using Photon.Realtime;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -105,7 +101,7 @@ namespace GorillaRichPresence.Tools
                             }
                         }
 
-                        Events.SendNotification(new("You got a join request:", requestingUser.Username, 5, EWatchSound.notificationPositive, new(typeof(JoinRequestScreen), "Invite", delegate ()
+                        Events.SendNotification(new("You got a join request:", requestingUser.Username, 5, InfoWatchSound.notificationPositive, new(typeof(JoinRequestScreen), "Invite", delegate ()
                         {
                             JoinRequestScreen.hasUser = true;
                             JoinRequestScreen.requestingUser = requestingUser;
@@ -156,7 +152,7 @@ namespace GorillaRichPresence.Tools
                             }
                         }
 
-                        Events.SendNotification(new("You got a join request:", requestingUser.Username, 5, EWatchSound.notificationPositive, new(typeof(InviteRequestScreen), "Invite", delegate ()
+                        Events.SendNotification(new("You got a join request:", requestingUser.Username, 5, InfoWatchSound.notificationPositive, new(typeof(InviteRequestScreen), "Invite", delegate ()
                         {
                             InviteRequestScreen.hasUser = true;
                             InviteRequestScreen.requestingUser = requestingUser;
@@ -249,7 +245,7 @@ namespace GorillaRichPresence.Tools
                     Logging.Info($"Secret: {string.Join(", ", joinSecret.Split("\n"))}");
                     activity.Secrets.Join = joinSecret;
                 }
-                
+
                 activity.Secrets.Match = string.IsNullOrEmpty(joinSecret) ? "" : "foo match";
                 activity.Secrets.Spectate = string.IsNullOrEmpty(joinSecret) ? "" : "foo spectate";
             }

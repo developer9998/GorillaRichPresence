@@ -14,7 +14,7 @@ namespace GorillaRichPresence.Utils
             GTZone.arena => "Magmarena",
             GTZone.mall => "Atrium",
             GTZone.ghostReactor or GTZone.ghostReactorTunnel => "Ghost Reactor",
-            GTZone.monkeBlocksShared => "Share my Blocks",
+            GTZone.monkeBlocksShared => "Share My Blocks",
             _ => zone.GetName().ToTitleCase()
         };
 

@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace GorillaRichPresence.Models
 {
-    internal class JoinRequestScreen : Screen
+    internal class JoinRequestScreen : InfoWatchScreen
     {
         public override string Title => "Join Request";
 
@@ -23,20 +23,20 @@ namespace GorillaRichPresence.Models
         {
             if (!hasUser)
             {
-                SetScreen(CallerType);
+                ReturnToHomePage();
                 return null;
             }
 
             LineBuilder lines = new();
 
-            lines.AddLine("A user has requested to join you:");
-            lines.AddLine(requestingUser.Username, new WidgetSymbol((Symbol)requestingAvatar));
+            lines.Add("A user has requested to join you:");
+            lines.Add(requestingUser.Username, new Widget_Symbol((Symbol)requestingAvatar));
 
-            lines.AddLine();
-            lines.AddLine("Select a specified reply:");
-            lines.AddLine("Accept", new PushButton(ReplyChosen, ActivityJoinRequestReply.Yes));
-            lines.AddLine("Decline", new PushButton(ReplyChosen, ActivityJoinRequestReply.No));
-            lines.AddLine("Ignore", new PushButton(ReplyChosen, ActivityJoinRequestReply.Ignore));
+            lines.Skip();
+            lines.Add("Select a specified reply:");
+            lines.Add("Accept", new Widget_PushButton(ReplyChosen, ActivityJoinRequestReply.Yes));
+            lines.Add("Decline", new Widget_PushButton(ReplyChosen, ActivityJoinRequestReply.No));
+            lines.Add("Ignore", new Widget_PushButton(ReplyChosen, ActivityJoinRequestReply.Ignore));
 
             return lines;
         }

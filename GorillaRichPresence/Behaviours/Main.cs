@@ -6,6 +6,7 @@ using GorillaRichPresence.Tools;
 using GorillaRichPresence.Utils;
 using GorillaTagScripts.ModIO;
 using ModIO;
+using Photon.Pun;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -79,7 +80,7 @@ namespace GorillaRichPresence.Behaviours
 
             Logging.Info($"Secret: {string.Join(", ", secretContent)}");
 
-            if(secretContent.ElementAtOrDefault(0) is not string roomCode || string.IsNullOrEmpty(roomCode) || string.IsNullOrWhiteSpace(roomCode) || secretContent.ElementAtOrDefault(1) is not string zone || string.IsNullOrEmpty(zone) || string.IsNullOrWhiteSpace(zone))
+            if (secretContent.ElementAtOrDefault(0) is not string roomCode || string.IsNullOrEmpty(roomCode) || string.IsNullOrWhiteSpace(roomCode) || secretContent.ElementAtOrDefault(1) is not string zone || string.IsNullOrEmpty(zone) || string.IsNullOrWhiteSpace(zone))
             {
                 Logging.Warning("Secrets are malformed");
                 return;
@@ -234,28 +235,40 @@ namespace GorillaRichPresence.Behaviours
 
             for (int i = 0; i < 2; i++)
             {
-                DiscordWrapper.SetActivity((Activity Activity) =>
+                if (!NetworkSystem.Instance.InRoom)
+                    break;
+
+                DiscordWrapper.SetActivity(Activity =>
                 {
                     // Define game mode 
+
+                    bool pun = NetworkSystem.Instance is NetworkSystemPUN;
 
                     string gameModeString = NetworkSystem.Instance.GameModeString;
                     string gameTypeName = GameMode.FindGameModeInString(gameModeString);
                     string networkZone = GorillaComputer.instance.primaryTriggersByZone.Keys.FirstOrDefault(zone => gameModeString.StartsWith(zone)) ?? (gameModeString.StartsWith(PhotonNetworkController.Instance.privateTrigger.networkZone) ? PhotonNetworkController.Instance.privateTrigger.networkZone : null);
 
-                    string currentQueue = gameModeString;
-
-                    if (!string.IsNullOrEmpty(networkZone))
-                        currentQueue = currentQueue.RemoveStart(networkZone);
-
-                    if (!string.IsNullOrEmpty(gameTypeName))
-                        currentQueue = currentQueue.RemoveEnd(gameTypeName);
-
                     bool isModdedRoom = false;
 
-                    if (currentQueue.EndsWith("modded_"))
+                    if (pun && PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("queueName", out object value) && value is string currentQueue)
                     {
-                        isModdedRoom = true;
-                        currentQueue.RemoveEnd("modded_");
+                        isModdedRoom = gameModeString.Contains("MODDED_");
+                    }
+                    else
+                    {
+                        currentQueue = gameModeString;
+
+                        if (!string.IsNullOrEmpty(networkZone))
+                            currentQueue = currentQueue.RemoveStart(networkZone);
+
+                        if (!string.IsNullOrEmpty(gameTypeName))
+                            currentQueue = currentQueue.RemoveEnd(gameTypeName);
+
+                        if (currentQueue.EndsWith("MODDED_"))
+                        {
+                            isModdedRoom = true;
+                            currentQueue = currentQueue.RemoveEnd("MODDED_");
+                        }
                     }
 
                     ModId currentRoomMap = CustomMapManager.GetRoomMapId();
@@ -266,11 +279,11 @@ namespace GorillaRichPresence.Behaviours
 
                     // Update description
                     Activity.State = NetworkSystem.Instance.SessionIsPrivate ? $"In {(Configuration.DisplayPrivateCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Private Room")}" : $"In {(Configuration.DisplayPublicCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Public Room")}";
-                    Activity.Details = $"Playing{(isModdedRoom ? " Modded " : " ")}{gameModeName.ToTitleCase()} under {currentQueue.ToTitleCase()}";
+                    Activity.Details = $"Playing{(isModdedRoom ? " Modded " : " ")}{gameModeName.ToTitleCase()} in {currentQueue.ToTitleCase()}";
 
                     // Update party
                     Activity.Party.Size.CurrentSize = NetworkSystem.Instance.RoomPlayerCount;
-                    Activity.Party.Size.MaxSize = NetworkSystem.Instance.config.MaxPlayerCount;
+                    Activity.Party.Size.MaxSize = RoomSystem.GetRoomSize(gameModeString);
                     Activity.Party.Id = string.Concat(NetworkSystem.Instance.RoomName, NetworkSystem.Instance.CurrentRegion.Replace("/*", ""), NetworkSystem.Instance.MasterClient.ActorNumber);
                     Activity.Instance = true;
 
@@ -286,7 +299,8 @@ namespace GorillaRichPresence.Behaviours
                 });
 
                 DiscordWrapper.UpdateActivity();
-                await Task.Delay(300);
+
+                await Task.Delay(500);
             }
         }
 

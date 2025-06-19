@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace GorillaRichPresence.Models
 {
-    internal class InviteRequestScreen : Screen
+    internal class InviteRequestScreen : InfoWatchScreen
     {
         public override string Title => "Join Invite";
 
@@ -23,19 +23,19 @@ namespace GorillaRichPresence.Models
         {
             if (!hasUser)
             {
-                SetScreen(CallerType);
+                ReturnToHomePage();
                 return null;
             }
 
             LineBuilder lines = new();
 
-            lines.AddLine("A user has invited you to play with them:");
-            lines.AddLine(requestingUser.Username, new WidgetSymbol((Symbol)requestingAvatar));
+            lines.Add("A user has invited you to play with them:");
+            lines.Add(requestingUser.Username, new Widget_Symbol((Symbol)requestingAvatar));
 
-            lines.AddLine();
-            lines.AddLine("Select a specified reply:");
-            lines.AddLine("Accept", new PushButton(ReplyChosen, true));
-            lines.AddLine("Decline", new PushButton(ReplyChosen, false));
+            lines.Skip();
+            lines.Add("Would you like to join this user?");
+            lines.Add("Accept", new Widget_PushButton(ReplyChosen, true));
+            lines.Add("Decline", new Widget_PushButton(ReplyChosen, false));
 
             return lines;
         }
