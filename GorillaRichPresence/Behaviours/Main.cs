@@ -173,51 +173,54 @@ namespace GorillaRichPresence.Behaviours
 
         public void OnModIOLoggedIn()
         {
-            CheckCustomMap();
-            DiscordWrapper.UpdateActivity();
+            ModId modId = CustomMapManager.GetRoomMapId();
+            SetVStumpActivity(modId);
         }
 
         public void OnRoomMapChanged(ModId roomMapModId)
         {
-            CheckCustomMap();
-            DiscordWrapper.UpdateActivity();
+            SetVStumpActivity(roomMapModId);
         }
 
-        private void CheckCustomMap()
+        private void SetVStumpActivity(ModId modId)
         {
-            if (ModIOManager.IsLoggedIn())
+            if (modId == ModId.Null || !ModIOManager.IsLoggedIn())
             {
-                ModId currentRoomMap = CustomMapManager.GetRoomMapId();
-                if (currentRoomMap != ModId.Null)
-                {
-                    ModIOManager.GetModProfile(currentRoomMap, (ModIORequestResultAnd<ModProfile> result) =>
-                    {
-                        if (result.result.success && ModIOManager.IsLoggedIn()) // second login check, just to be safe!
-                        {
-                            DiscordWrapper.SetActivity((Activity Activity) =>
-                            {
-                                // Update map (custom map)
-                                Activity.Assets.LargeImage = result.data.logoImage320x180.url;
-                                Activity.Assets.LargeText = $"{result.data.creator.username}: {result.data.name}";
-
-                                return Activity;
-                            });
-
-                            return;
-                        }
-                    });
-                }
+                ResetVStumpActivity();
+                return;
             }
 
+            ModIOManager.GetModProfile(modId, result =>
+            {
+                if (result.result.success)
+                {
+                    DiscordWrapper.SetActivity((Activity Activity) =>
+                    {
+                        Activity.Assets.LargeImage = result.data.logoImage640x360.url;
+                        Activity.Assets.LargeText = $"{result.data.creator.username}: {result.data.name}";
+
+                        return Activity;
+                    });
+
+                    DiscordWrapper.UpdateActivity();
+                    return;
+                }
+
+                ResetVStumpActivity();
+            });
+        }
+
+        public void ResetVStumpActivity()
+        {
             DiscordWrapper.SetActivity((Activity Activity) =>
             {
-                // Update map (virtual stump)
                 (string image, string text) = ZoneUtils.GetActivityAssets(GTZone.customMaps);
                 Activity.Assets.LargeImage = image;
                 Activity.Assets.LargeText = text;
 
                 return Activity;
             });
+            DiscordWrapper.UpdateActivity();
         }
 
         // Room
@@ -228,11 +231,6 @@ namespace GorillaRichPresence.Behaviours
 
         private async void UpdateMultiplayer(bool isInitialJoin)
         {
-            if (ZoneManagement.IsInZone(GTZone.customMaps))
-            {
-                CheckCustomMap();
-            }
-
             for (int i = 0; i < 2; i++)
             {
                 if (!NetworkSystem.Instance.InRoom)
@@ -250,6 +248,8 @@ namespace GorillaRichPresence.Behaviours
 
                     bool isModdedRoom = false;
 
+                    ModId modId = CustomMapManager.GetRoomMapId();
+
                     if (pun && PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("queueName", out object value) && value is string currentQueue)
                     {
                         isModdedRoom = gameModeString.Contains("MODDED_");
@@ -264,16 +264,15 @@ namespace GorillaRichPresence.Behaviours
                         if (!string.IsNullOrEmpty(gameTypeName))
                             currentQueue = currentQueue.RemoveEnd(gameTypeName);
 
+                        if (modId != ModId.Null)
+                            currentQueue = currentQueue.Split(modId.id.ToString()).FirstOrDefault() ?? currentQueue;
+
                         if (currentQueue.EndsWith("MODDED_"))
                         {
                             isModdedRoom = true;
                             currentQueue = currentQueue.RemoveEnd("MODDED_");
                         }
                     }
-
-                    ModId currentRoomMap = CustomMapManager.GetRoomMapId();
-                    if (currentRoomMap != ModId.Null)
-                        currentQueue = currentQueue.Split(currentRoomMap.id.ToString()).FirstOrDefault() ?? currentQueue;
 
                     string gameModeName = GameMode.gameModeKeyByName.TryGetValue(gameTypeName, out int key) && GameMode.gameModeTable.TryGetValue(key, out GorillaGameManager manager) ? manager.GameModeName() : gameTypeName;
 
@@ -287,7 +286,9 @@ namespace GorillaRichPresence.Behaviours
                     Activity.Party.Id = string.Concat(NetworkSystem.Instance.RoomName, NetworkSystem.Instance.CurrentRegion.Replace("/*", ""), NetworkSystem.Instance.MasterClient.ActorNumber);
                     Activity.Instance = true;
 
-                    if (isInitialJoin && currentRoomMap == ModId.Null)
+                    bool isCustomMap = modId != ModId.Null && ModIOManager.IsLoggedIn();
+                    if (i == 0 && isInitialJoin && isCustomMap) SetVStumpActivity(modId);
+                    else if (isInitialJoin && !isCustomMap)
                     {
                         // Update map
                         (string image, string text) = ZoneUtils.GetActivityAssets(ActiveZones.Length == 0 ? PhotonNetworkController.Instance.StartZone : ActiveZones[0]);
@@ -308,7 +309,8 @@ namespace GorillaRichPresence.Behaviours
         {
             if (ZoneManagement.IsInZone(GTZone.customMaps))
             {
-                CheckCustomMap();
+                ModId modId = CustomMapManager.GetRoomMapId();
+                SetVStumpActivity(modId);
             }
 
             DiscordWrapper.SetActivity((Activity Activity) =>

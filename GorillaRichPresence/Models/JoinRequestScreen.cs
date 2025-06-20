@@ -33,10 +33,17 @@ namespace GorillaRichPresence.Models
             lines.Add(requestingUser.Username, new Widget_Symbol((Symbol)requestingAvatar));
 
             lines.Skip();
-            lines.Add("Select a specified reply:");
+
             lines.Add("Accept", new Widget_PushButton(ReplyChosen, ActivityJoinRequestReply.Yes));
+            lines.Add("Request will advance to inviting the user to play");
+            lines.Skip();
+
             lines.Add("Decline", new Widget_PushButton(ReplyChosen, ActivityJoinRequestReply.No));
+            lines.Add("Request is explicitly denied, user will be informed");
+            lines.Skip();
+
             lines.Add("Ignore", new Widget_PushButton(ReplyChosen, ActivityJoinRequestReply.Ignore));
+            lines.Add("Request will remain active, no response is sent");
 
             return lines;
         }

@@ -33,7 +33,7 @@ namespace GorillaRichPresence.Models
             lines.Add(requestingUser.Username, new Widget_Symbol((Symbol)requestingAvatar));
 
             lines.Skip();
-            lines.Add("Would you like to join this user?");
+
             lines.Add("Accept", new Widget_PushButton(ReplyChosen, true));
             lines.Add("Decline", new Widget_PushButton(ReplyChosen, false));
 

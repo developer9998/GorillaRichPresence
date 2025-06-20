@@ -74,17 +74,20 @@ namespace GorillaRichPresence.Tools
 
                 string avatarUrl = string.Format("https://cdn.discordapp.com/avatars/{0}/{1}.png?size=128", user.Id, user.Avatar);
                 UnityWebRequest request = UnityWebRequestTexture.GetTexture(avatarUrl);
-                Task task = TaskUtils.Yield(request);
-                TaskAwaiter awaiter = task.GetAwaiter();
-
-                void TaskComplete()
+                TaskUtils.Yield(request).ContinueWith(task =>
                 {
-                    Console.WriteLine("Task completed");
+                    if (task.IsFaulted)
+                    {
+                        Logging.Error(task.Exception);
+                        return;
+                    }
+
+                    Logging.Info($"Task completed");
 
                     if (request.result == UnityWebRequest.Result.Success)
                     {
                         Texture tex = ((DownloadHandlerTexture)request.downloadHandler).texture;
-                        Console.WriteLine("Got avatar");
+                        Logging.Info("Got avatar");
 
                         void ReplyChosen(User user, ActivityJoinRequestReply reply)
                         {
@@ -95,13 +98,13 @@ namespace GorillaRichPresence.Tools
                                 {
                                     if (res == Result.Ok)
                                     {
-                                        Console.WriteLine("Responded successfully");
+                                        Logging.Info("Responded successfully");
                                     }
                                 });
                             }
                         }
 
-                        Events.SendNotification(new("You got a join request:", requestingUser.Username, 5, InfoWatchSound.notificationPositive, new(typeof(JoinRequestScreen), "Invite", delegate ()
+                        Events.SendNotification(new("You received a join request", requestingUser.Username, 5, InfoWatchSound.notificationPositive, new(typeof(JoinRequestScreen), "Invite", delegate ()
                         {
                             JoinRequestScreen.hasUser = true;
                             JoinRequestScreen.requestingUser = requestingUser;
@@ -109,11 +112,7 @@ namespace GorillaRichPresence.Tools
                             JoinRequestScreen.sendReply += ReplyChosen;
                         })));
                     }
-                }
-
-                awaiter.OnCompleted(TaskComplete);
-
-                awaiter.GetResult();
+                });
             };
 
             // invited to play by another user
@@ -125,17 +124,20 @@ namespace GorillaRichPresence.Tools
 
                 string avatarUrl = string.Format("https://cdn.discordapp.com/avatars/{0}/{1}.png?size=128", user.Id, user.Avatar);
                 UnityWebRequest request = UnityWebRequestTexture.GetTexture(avatarUrl);
-                Task task = TaskUtils.Yield(request);
-                TaskAwaiter awaiter = task.GetAwaiter();
-
-                void TaskComplete()
+                TaskUtils.Yield(request).ContinueWith(task =>
                 {
-                    Console.WriteLine("Task completed");
+                    if (task.IsFaulted)
+                    {
+                        Logging.Error(task.Exception);
+                        return;
+                    }
+
+                    Logging.Info("Task completed");
 
                     if (request.result == UnityWebRequest.Result.Success)
                     {
                         Texture tex = ((DownloadHandlerTexture)request.downloadHandler).texture;
-                        Console.WriteLine("Got avatar");
+                        Logging.Info("Got avatar");
 
                         void ReplyChosen(User user, bool accept)
                         {
@@ -146,13 +148,13 @@ namespace GorillaRichPresence.Tools
                                 {
                                     activityManager.AcceptInvite(user.Id, result =>
                                     {
-                                        Console.WriteLine("AcceptInvite {0}", result);
+                                        Logging.Info($"AcceptInvite {result}");
                                     });
                                 }
                             }
                         }
 
-                        Events.SendNotification(new("You got a join request:", requestingUser.Username, 5, InfoWatchSound.notificationPositive, new(typeof(InviteRequestScreen), "Invite", delegate ()
+                        Events.SendNotification(new("You received an invite", requestingUser.Username, 5, InfoWatchSound.notificationPositive, new(typeof(InviteRequestScreen), "Invite", delegate ()
                         {
                             InviteRequestScreen.hasUser = true;
                             InviteRequestScreen.requestingUser = requestingUser;
@@ -160,11 +162,7 @@ namespace GorillaRichPresence.Tools
                             InviteRequestScreen.sendReply += ReplyChosen;
                         })));
                     }
-                }
-
-                awaiter.OnCompleted(TaskComplete);
-
-                awaiter.GetResult();
+                });
             };
 
             try
