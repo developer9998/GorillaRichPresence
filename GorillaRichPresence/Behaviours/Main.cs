@@ -155,18 +155,15 @@ namespace GorillaRichPresence.Behaviours
         {
             ActiveZones = zones.Where(zone => zone.active).Select(zone => zone.zone).ToArray();
 
-            if (!NetworkSystem.Instance.InRoom || (NetworkSystem.Instance.InRoom && NetworkSystem.Instance.SessionIsPrivate))
+            DiscordWrapper.SetActivity((Activity Activity) =>
             {
-                DiscordWrapper.SetActivity((Activity Activity) =>
-                {
-                    // Update map
-                    (string image, string text) = ZoneUtils.GetActivityAssets(ActiveZones.First());
-                    Activity.Assets.LargeImage = image;
-                    Activity.Assets.LargeText = text;
+                // Update map
+                (string image, string text) = ZoneUtils.GetActivityAssets(ActiveZones.First());
+                Activity.Assets.LargeImage = image;
+                Activity.Assets.LargeText = text;
 
-                    return Activity;
-                });
-            }
+                return Activity;
+            });
 
             DiscordWrapper.UpdateActivity();
         }
