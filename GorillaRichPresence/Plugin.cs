@@ -1,8 +1,11 @@
 ﻿using BepInEx;
+using GorillaInfoWatch.Attributes;
 using GorillaRichPresence.Behaviours;
 using GorillaRichPresence.Tools;
 using HarmonyLib;
 using UnityEngine;
+
+[assembly: InfoWatchCompatible]
 
 namespace GorillaRichPresence
 {
