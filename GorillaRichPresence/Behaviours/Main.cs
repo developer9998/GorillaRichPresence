@@ -281,6 +281,7 @@ namespace GorillaRichPresence.Behaviours
                     Activity.Party.Size.CurrentSize = NetworkSystem.Instance.RoomPlayerCount;
                     Activity.Party.Size.MaxSize = RoomSystem.GetRoomSize(gameModeString);
                     Activity.Party.Id = string.Concat(NetworkSystem.Instance.RoomName, NetworkSystem.Instance.CurrentRegion.Replace("/*", ""), NetworkSystem.Instance.MasterClient.ActorNumber);
+                    Activity.Party.Privacy = NetworkSystem.Instance.SessionIsPrivate ? 1 : 0;
                     Activity.Instance = true;
 
                     bool isCustomMap = modId != ModId.Null && ModIOManager.IsLoggedIn();

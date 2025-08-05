@@ -267,7 +267,10 @@ namespace Discord
         public string Id;
 
         public PartySize Size;
+
+        public int Privacy; 
     }
+
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public partial struct ActivitySecrets
