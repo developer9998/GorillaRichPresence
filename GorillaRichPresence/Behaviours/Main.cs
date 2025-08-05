@@ -7,6 +7,7 @@ using GorillaRichPresence.Utils;
 using GorillaTagScripts.ModIO;
 using ModIO;
 using Photon.Pun;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -34,24 +35,19 @@ namespace GorillaRichPresence.Behaviours
 
         public void Start()
         {
-            // Add network events
+            // Events
             NetworkSystem.Instance.OnMultiplayerStarted += UpdateMultiplayer;
             NetworkSystem.Instance.OnPlayerJoined += UpdateMultiplayerWithPlayer;
             NetworkSystem.Instance.OnPlayerLeft += UpdateMultiplayerWithPlayer;
             NetworkSystem.Instance.OnReturnedToSinglePlayer += UpdateSingleplayer;
 
-            // Add mod.io map events
             ModIOManager.OnModIOLoggedIn.AddListener(new UnityAction(OnModIOLoggedIn));
             CustomMapManager.OnRoomMapChanged.AddListener(new UnityAction<ModId>(OnRoomMapChanged));
 
-            // Add misc events
             DiscordWrapper.OnActivityJoin += OnActivityJoin;
             ZoneManagement.OnZoneChange += OnZoneChange;
 
-            Logging.Log("Constructing Discord client");
-            DiscordWrapper.Construct();
-
-            Logging.Log("Constructing initial Activity");
+            DiscordWrapper.Initialize();
             DiscordWrapper.SetActivity((Activity Activity) =>
             {
                 // Update description
@@ -66,6 +62,7 @@ namespace GorillaRichPresence.Behaviours
                 (string image, string text) = ZoneUtils.GetActivityAssets(PhotonNetworkController.Instance.StartZone);
                 Activity.Assets.LargeImage = image;
                 Activity.Assets.LargeText = text;
+
                 return Activity;
             });
 
@@ -76,9 +73,9 @@ namespace GorillaRichPresence.Behaviours
 
         private void OnActivityJoin(string secrets)
         {
+            Logging.Message("OnActivityJoin");
             object[] secretContent = secrets.Split("\n");
-
-            Logging.Info($"Secret: {string.Join(", ", secretContent)}");
+            Array.ForEach(secretContent, Logging.Info);
 
             if (secretContent.ElementAtOrDefault(0) is not string roomCode || string.IsNullOrEmpty(roomCode) || string.IsNullOrWhiteSpace(roomCode) || secretContent.ElementAtOrDefault(1) is not string zone || string.IsNullOrEmpty(zone) || string.IsNullOrWhiteSpace(zone))
             {
@@ -98,19 +95,19 @@ namespace GorillaRichPresence.Behaviours
                 return;
             }
 
-            if (zone == "none")
+            if (zone == GTZone.none.GetName())
             {
                 Logging.Warning("Unidentified zone");
                 return;
             }
 
-            if (zone != "private")
+            if (zone != PhotonNetworkController.Instance.privateTrigger.networkZone)
             {
                 bool validZone = false;
 
                 foreach (GTZone gtzone in ZoneManagement.instance.activeZones)
                 {
-                    if (gtzone == GTZone.cave && zone.ToLower() == "mines")
+                    if (gtzone == GTZone.cave && zone.ToLower() == GTZone.mines.GetName())
                     {
                         validZone = true;
                         break;
@@ -153,16 +150,16 @@ namespace GorillaRichPresence.Behaviours
 
         public void OnZoneChange(ZoneData[] zones)
         {
-            ActiveZones = zones.Where(zone => zone.active).Select(zone => zone.zone).ToArray();
+            ActiveZones = [.. zones.Where(zone => zone.active).Select(zone => zone.zone)];
 
-            DiscordWrapper.SetActivity((Activity Activity) =>
+            DiscordWrapper.SetActivity(activity =>
             {
                 // Update map
                 (string image, string text) = ZoneUtils.GetActivityAssets(ActiveZones.First());
-                Activity.Assets.LargeImage = image;
-                Activity.Assets.LargeText = text;
+                activity.Assets.LargeImage = image;
+                activity.Assets.LargeText = text;
 
-                return Activity;
+                return activity;
             });
 
             DiscordWrapper.UpdateActivity();

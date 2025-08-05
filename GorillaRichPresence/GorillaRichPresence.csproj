@@ -38,7 +38,7 @@
       <HintPath>$(GameAssemblyPath)\Fusion.Runtime.dll</HintPath>
     </Reference>
     <Reference Include="GorillaInfoWatch">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\BepInEx\plugins\#Dev's Mods\GorillaInfoWatch\GorillaInfoWatch.dll</HintPath>
+      <HintPath>$(PluginsPath)\GorillaInfoWatch\GorillaInfoWatch.dll</HintPath>
     </Reference>
     <Reference Include="modio.UnityPlugin">
       <HintPath>$(GameAssemblyPath)\modio.UnityPlugin.dll</HintPath>

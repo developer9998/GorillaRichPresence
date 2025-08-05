@@ -1,15 +1,13 @@
-﻿using Discord;
+﻿using BepInEx;
+using Discord;
 using GorillaInfoWatch;
 using GorillaInfoWatch.Models;
 using GorillaNetworking;
 using GorillaRichPresence.Models;
-using GorillaRichPresence.Utils;
 using Photon.Realtime;
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -26,9 +24,14 @@ namespace GorillaRichPresence.Tools
         private static bool toUpload = true;
         private static float lastUploadTime = Constants.ActivityUploadDelay;
 
-        public static void Construct()
+        private static Thread thread;
+
+        public static void Initialize()
         {
-            new Thread(RegisterDiscord).Start();
+            if (thread is not null) return;
+
+            thread = new Thread(RegisterDiscord);
+            thread.Start();
         }
 
         public static void RegisterDiscord()
@@ -43,7 +46,11 @@ namespace GorillaRichPresence.Tools
 
             discord.SetLogHook(LogLevel.Info, (level, message) =>
             {
-                Logging.Log($"Discord: {message}", (BepInEx.Logging.LogLevel)Enum.Parse(typeof(BepInEx.Logging.LogLevel), level.ToString().Replace(nameof(LogLevel.Warn), "Warning")));
+                Logging.Log($"Discord: {message}", level switch
+                {
+                    LogLevel.Warn => BepInEx.Logging.LogLevel.Warning,
+                    _ => Enum.Parse<BepInEx.Logging.LogLevel>(level.GetName())
+                });
             });
 
             activityManager = discord.GetActivityManager();
@@ -71,23 +78,16 @@ namespace GorillaRichPresence.Tools
                 User requestingUser = user;
 
                 Logging.Info($"OnActivityJoinRequest {JsonUtility.ToJson(user, true)}");
-
-                string avatarUrl = string.Format("https://cdn.discordapp.com/avatars/{0}/{1}.png?size=128", user.Id, user.Avatar);
-                UnityWebRequest request = UnityWebRequestTexture.GetTexture(avatarUrl);
-                TaskUtils.Yield(request).ContinueWith(task =>
+                ThreadingHelper.Instance.StartSyncInvoke(async () =>
                 {
-                    if (task.IsFaulted)
-                    {
-                        Logging.Error(task.Exception);
-                        return;
-                    }
-
-                    Logging.Info($"Task completed");
+                    string avatarUrl = string.Format("https://cdn.discordapp.com/avatars/{0}/{1}.png?size=128", requestingUser.Id, requestingUser.Avatar);
+                    UnityWebRequest request = UnityWebRequestTexture.GetTexture(avatarUrl);
+                    UnityWebRequestAsyncOperation operation = request.SendWebRequest();
+                    await operation;
 
                     if (request.result == UnityWebRequest.Result.Success)
                     {
                         Texture tex = ((DownloadHandlerTexture)request.downloadHandler).texture;
-                        Logging.Info("Got avatar");
 
                         void ReplyChosen(User user, ActivityJoinRequestReply reply)
                         {
@@ -116,28 +116,21 @@ namespace GorillaRichPresence.Tools
             };
 
             // invited to play by another user
-            activityManager.OnActivityInvite += (ActivityActionType Type, ref User user, ref Activity activity2) =>
+            activityManager.OnActivityInvite += (ActivityActionType Type, ref User user, ref Activity invitedActivity) =>
             {
                 User requestingUser = user;
 
-                Logging.Info($"OnActivityInvite {Type} {JsonUtility.ToJson(user, true)} {activity2.Name}");
-
-                string avatarUrl = string.Format("https://cdn.discordapp.com/avatars/{0}/{1}.png?size=128", user.Id, user.Avatar);
-                UnityWebRequest request = UnityWebRequestTexture.GetTexture(avatarUrl);
-                TaskUtils.Yield(request).ContinueWith(task =>
+                Logging.Info($"OnActivityInvite {Type} {JsonUtility.ToJson(user, true)} {invitedActivity.Name}");
+                ThreadingHelper.Instance.StartSyncInvoke(async () =>
                 {
-                    if (task.IsFaulted)
-                    {
-                        Logging.Error(task.Exception);
-                        return;
-                    }
-
-                    Logging.Info("Task completed");
+                    string avatarUrl = string.Format("https://cdn.discordapp.com/avatars/{0}/{1}.png?size=128", requestingUser.Id, requestingUser.Avatar);
+                    UnityWebRequest request = UnityWebRequestTexture.GetTexture(avatarUrl);
+                    UnityWebRequestAsyncOperation operation = request.SendWebRequest();
+                    await operation;
 
                     if (request.result == UnityWebRequest.Result.Success)
                     {
                         Texture tex = ((DownloadHandlerTexture)request.downloadHandler).texture;
-                        Logging.Info("Got avatar");
 
                         void ReplyChosen(User user, bool accept)
                         {
@@ -169,6 +162,8 @@ namespace GorillaRichPresence.Tools
             {
                 while (true)
                 {
+                    bool hasException = false;
+
                     try
                     {
                         Thread.Sleep((int)(Constants.TickDebounce * 1000f));
@@ -184,7 +179,8 @@ namespace GorillaRichPresence.Tools
                             }
                             catch (Exception ex)
                             {
-                                Logging.Error(string.Concat("ActivityManager could not be updated: ", ex));
+                                Logging.Fatal("ActivityManager could not update");
+                                Logging.Error(ex);
                             }
                         }
 
@@ -192,8 +188,11 @@ namespace GorillaRichPresence.Tools
                     }
                     catch (ResultException ex)
                     {
-                        Logging.Error(string.Concat("Discord threw a ResultException: ", ex.Message));
+                        Logging.Fatal("Discord threw a ResultException");
+                        Logging.Error(ex);
                     }
+
+                    if (hasException) break;
                 }
             }
             finally
