@@ -2,6 +2,7 @@
 using Discord;
 using GorillaInfoWatch;
 using GorillaInfoWatch.Models;
+using GorillaInfoWatch.Models.Enumerations;
 using GorillaNetworking;
 using GorillaRichPresence.Models;
 using Photon.Realtime;
@@ -66,7 +67,7 @@ namespace GorillaRichPresence.Tools
             activity.Timestamps.Start = ((DateTimeOffset)DateTime.Now).ToUnixTimeSeconds();
 
             // user joins you
-            activityManager.OnActivityJoin += (string secret) =>
+            activityManager.OnActivityJoin += secret =>
             {
                 Logging.Info($"OnActivityJoin {secret}");
                 OnActivityJoin?.Invoke(secret);
@@ -104,7 +105,7 @@ namespace GorillaRichPresence.Tools
                             }
                         }
 
-                        Events.SendNotification(new("You received a join request", requestingUser.Username, 5, InfoWatchSound.notificationPositive, new(typeof(JoinRequestScreen), "Invite", delegate ()
+                        Notifications.SendNotification(new("You received a join request", requestingUser.Username, 5, Sounds.notificationPositive, new(typeof(JoinRequestScreen), "Invite", delegate ()
                         {
                             JoinRequestScreen.hasUser = true;
                             JoinRequestScreen.requestingUser = requestingUser;
@@ -147,7 +148,7 @@ namespace GorillaRichPresence.Tools
                             }
                         }
 
-                        Events.SendNotification(new("You received an invite", requestingUser.Username, 5, InfoWatchSound.notificationPositive, new(typeof(InviteRequestScreen), "Invite", delegate ()
+                        Notifications.SendNotification(new("You received an invite", requestingUser.Username, 5, Sounds.notificationPositive, new(typeof(InviteRequestScreen), "Invite", delegate ()
                         {
                             InviteRequestScreen.hasUser = true;
                             InviteRequestScreen.requestingUser = requestingUser;
@@ -218,9 +219,7 @@ namespace GorillaRichPresence.Tools
 
                 if (NetworkSystem.Instance.InRoom)
                 {
-                    List<string> list = new();
-
-                    list.Add(NetworkSystem.Instance.RoomName);
+                    List<string> list = [NetworkSystem.Instance.RoomName];
 
                     if (NetworkSystem.Instance.SessionIsPrivate)
                         list.Add(PhotonNetworkController.Instance.privateTrigger.networkZone);

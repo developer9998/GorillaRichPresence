@@ -1,5 +1,5 @@
 ﻿using BepInEx;
-using GorillaInfoWatch.Attributes;
+using GorillaInfoWatch.Models.Attributes;
 using GorillaRichPresence.Behaviours;
 using GorillaRichPresence.Tools;
 using HarmonyLib;

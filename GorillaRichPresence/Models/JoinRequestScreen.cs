@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace GorillaRichPresence.Models
 {
-    internal class JoinRequestScreen : InfoWatchScreen
+    internal class JoinRequestScreen : Screen
     {
         public override string Title => "Join Request";
 
@@ -19,7 +19,7 @@ namespace GorillaRichPresence.Models
 
         public static Action<User, ActivityJoinRequestReply> sendReply;
 
-        public override ScreenContent GetContent()
+        public override ScreenLines GetContent()
         {
             if (!hasUser)
             {
