@@ -1,13 +1,12 @@
 ﻿using Discord;
 using GorillaInfoWatch.Models;
 using GorillaInfoWatch.Models.Widgets;
-using GorillaInfoWatch.Screens;
 using System;
 using System.Linq;
 
 namespace GorillaRichPresence.Models
 {
-    internal class JoinRequestScreen : Screen
+    internal class JoinRequestScreen : InfoScreen
     {
         public override string Title => "Join Request";
 
@@ -19,7 +18,7 @@ namespace GorillaRichPresence.Models
 
         public static Action<User, ActivityJoinRequestReply> sendReply;
 
-        public override ScreenLines GetContent()
+        public override InfoContent GetContent()
         {
             if (!hasUser)
             {
@@ -39,7 +38,7 @@ namespace GorillaRichPresence.Models
             lines.Skip();
 
             lines.Add("Decline", new Widget_PushButton(ReplyChosen, ActivityJoinRequestReply.No));
-            lines.Add("Request is explicitly denied, user will be informed");
+            lines.Add("Request is explicitly denied, user may be informed");
             lines.Skip();
 
             lines.Add("Ignore", new Widget_PushButton(ReplyChosen, ActivityJoinRequestReply.Ignore));
@@ -60,7 +59,7 @@ namespace GorillaRichPresence.Models
             {
                 sendReply?.Invoke(requestingUser, reply);
                 hasUser = false;
-                SetScreen<HomeScreen>();
+                ReturnToHomePage();
             }
         }
     }

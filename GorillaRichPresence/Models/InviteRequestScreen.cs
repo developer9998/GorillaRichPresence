@@ -1,13 +1,12 @@
 ﻿using Discord;
 using GorillaInfoWatch.Models;
 using GorillaInfoWatch.Models.Widgets;
-using GorillaInfoWatch.Screens;
 using System;
 using System.Linq;
 
 namespace GorillaRichPresence.Models
 {
-    internal class InviteRequestScreen : Screen
+    internal class InviteRequestScreen : InfoScreen
     {
         public override string Title => "Join Invite";
 
@@ -19,7 +18,7 @@ namespace GorillaRichPresence.Models
 
         public static Action<User, bool> sendReply;
 
-        public override ScreenLines GetContent()
+        public override InfoContent GetContent()
         {
             if (!hasUser)
             {
@@ -52,7 +51,7 @@ namespace GorillaRichPresence.Models
             {
                 sendReply?.Invoke(requestingUser, accept);
                 hasUser = false;
-                SetScreen<HomeScreen>();
+                ReturnToHomePage();
             }
         }
     }
