@@ -22,7 +22,7 @@ namespace GorillaRichPresence.Models
         {
             if (!hasUser)
             {
-                ReturnToHomePage();
+                ReturnScreen();
                 return null;
             }
 
@@ -51,7 +51,7 @@ namespace GorillaRichPresence.Models
             {
                 sendReply?.Invoke(requestingUser, accept);
                 hasUser = false;
-                ReturnToHomePage();
+                ReturnScreen();
             }
         }
     }

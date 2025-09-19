@@ -40,8 +40,8 @@
     <Reference Include="GorillaInfoWatch">
       <HintPath>$(PluginsPath)\GorillaInfoWatch\GorillaInfoWatch.dll</HintPath>
     </Reference>
-    <Reference Include="modio.UnityPlugin">
-      <HintPath>$(GameAssemblyPath)\modio.UnityPlugin.dll</HintPath>
+    <Reference Include="Modio">
+      <HintPath>$(GameAssemblyPath)\Modio.dll</HintPath>
     </Reference>
     <Reference Include="Mono.Security">
       <HintPath>$(GameAssemblyPath)\Mono.Security.dll</HintPath>

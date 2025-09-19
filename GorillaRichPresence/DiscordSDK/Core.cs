@@ -268,7 +268,7 @@ namespace Discord
 
         public PartySize Size;
 
-        public int Privacy;
+        // public int Privacy;
     }
 
 

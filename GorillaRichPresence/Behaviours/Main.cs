@@ -4,8 +4,8 @@ using GorillaNetworking;
 using GorillaRichPresence.Extensions;
 using GorillaRichPresence.Tools;
 using GorillaRichPresence.Utils;
-using GorillaTagScripts.ModIO;
-using ModIO;
+using Modio.Mods;
+using GorillaTagScripts.VirtualStumpCustomMaps;
 using Photon.Pun;
 using System;
 using System.Linq;
@@ -176,7 +176,7 @@ namespace GorillaRichPresence.Behaviours
             SetVStumpActivity(roomMapModId);
         }
 
-        private void SetVStumpActivity(ModId modId)
+        private async void SetVStumpActivity(ModId modId)
         {
             if (modId == ModId.Null || !ModIOManager.IsLoggedIn())
             {
@@ -184,23 +184,20 @@ namespace GorillaRichPresence.Behaviours
                 return;
             }
 
-            ModIOManager.GetModProfile(modId, result =>
+            var (error, mod) = await ModIOManager.GetMod(modId);
+
+            if (error)
             {
-                if (result.result.success)
-                {
-                    DiscordWrapper.SetActivity((Activity Activity) =>
-                    {
-                        Activity.Assets.LargeImage = result.data.logoImage640x360.url;
-                        Activity.Assets.LargeText = $"{result.data.creator.username}: {result.data.name}";
-
-                        return Activity;
-                    });
-
-                    DiscordWrapper.UpdateActivity();
-                    return;
-                }
-
                 ResetVStumpActivity();
+                return;
+            }
+
+            DiscordWrapper.SetActivity((Activity Activity) =>
+            {
+                Activity.Assets.LargeImage = mod.Logo.GetUri(Mod.LogoResolution.X640_Y360).Url;
+                Activity.Assets.LargeText = $"{mod.Name}: {mod.Creator.Username}";
+
+                return Activity;
             });
         }
 
@@ -259,7 +256,7 @@ namespace GorillaRichPresence.Behaviours
                             currentQueue = currentQueue.RemoveEnd(gameTypeName);
 
                         if (modId != ModId.Null)
-                            currentQueue = currentQueue.Split(modId.id.ToString()).FirstOrDefault() ?? currentQueue;
+                            currentQueue = currentQueue.Split(modId._id.ToString()).FirstOrDefault() ?? currentQueue;
 
                         if (currentQueue.EndsWith("MODDED_"))
                         {
@@ -278,7 +275,7 @@ namespace GorillaRichPresence.Behaviours
                     Activity.Party.Size.CurrentSize = NetworkSystem.Instance.RoomPlayerCount;
                     Activity.Party.Size.MaxSize = RoomSystem.GetRoomSize(gameModeString);
                     Activity.Party.Id = string.Concat(NetworkSystem.Instance.RoomName, NetworkSystem.Instance.CurrentRegion.Replace("/*", ""), NetworkSystem.Instance.MasterClient.ActorNumber);
-                    Activity.Party.Privacy = NetworkSystem.Instance.SessionIsPrivate ? 1 : 0;
+                    // Activity.Party.Privacy = NetworkSystem.Instance.SessionIsPrivate ? 1 : 0;
                     Activity.Instance = true;
 
                     bool isCustomMap = modId != ModId.Null && ModIOManager.IsLoggedIn();
