@@ -2,7 +2,6 @@
 using Discord;
 using GorillaInfoWatch;
 using GorillaInfoWatch.Models;
-using GorillaInfoWatch.Models.Enumerations;
 using GorillaNetworking;
 using GorillaRichPresence.Models;
 using Photon.Realtime;
@@ -163,8 +162,6 @@ namespace GorillaRichPresence.Tools
             {
                 while (true)
                 {
-                    bool hasException = false;
-
                     try
                     {
                         Thread.Sleep((int)(Constants.TickDebounce * 1000f));
@@ -189,11 +186,14 @@ namespace GorillaRichPresence.Tools
                     }
                     catch (ResultException ex)
                     {
+                        if (ex.Result == Result.NotRunning)
+                        {
+                            Logging.Message("Discord closing");
+                            break;
+                        }
                         Logging.Fatal("Discord threw a ResultException");
                         Logging.Error(ex);
                     }
-
-                    if (hasException) break;
                 }
             }
             finally
