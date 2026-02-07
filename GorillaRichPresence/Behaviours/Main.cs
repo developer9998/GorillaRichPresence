@@ -4,14 +4,18 @@ using GorillaNetworking;
 using GorillaRichPresence.Extensions;
 using GorillaRichPresence.Tools;
 using GorillaRichPresence.Utils;
-using Modio.Mods;
 using GorillaTagScripts.VirtualStumpCustomMaps;
+using Modio.Mods;
 using Photon.Pun;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Events;
+using Utilla.Models;
+using Utilla.Utils;
+using GorillaRichPresence.Patches;
+using GorillaInfoWatch.Extensions;
 
 namespace GorillaRichPresence.Behaviours
 {
@@ -231,49 +235,24 @@ namespace GorillaRichPresence.Behaviours
                 {
                     // Define game mode 
 
-                    bool pun = NetworkSystem.Instance is NetworkSystemPUN;
-
                     string gameModeString = NetworkSystem.Instance.GameModeString;
-                    string gameTypeName = GameMode.FindGameModeInString(gameModeString);
-                    string networkZone = GorillaComputer.instance.primaryTriggersByZone.Keys.FirstOrDefault(zone => gameModeString.StartsWith(zone)) ?? (gameModeString.StartsWith(PhotonNetworkController.Instance.privateTrigger.networkZone) ? PhotonNetworkController.Instance.privateTrigger.networkZone : null);
-
-                    bool isModdedRoom = false;
 
                     ModId modId = CustomMapManager.GetRoomMapId();
 
-                    if (pun && PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("queueName", out object value) && value is string currentQueue)
+                    string queue = string.Empty;
+                    if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("queueName", out object queueObject) && queueObject is string queueName)
                     {
-                        isModdedRoom = gameModeString.Contains("MODDED_");
+                        bool isNativeQueue = ComputerQueuePatch.baseGameQueueNames.Contains(queueName);
+                        queue = $"{(isNativeQueue ? "Queue" : "Troop")} {(isNativeQueue ? queueName.ToTitleCase() : queueName.ToUpper())}";
                     }
-                    else
-                    {
-                        currentQueue = gameModeString;
-
-                        if (!string.IsNullOrEmpty(networkZone))
-                            currentQueue = currentQueue.RemoveStart(networkZone);
-
-                        if (!string.IsNullOrEmpty(gameTypeName))
-                            currentQueue = currentQueue.RemoveEnd(gameTypeName);
-
-                        if (modId != ModId.Null)
-                            currentQueue = currentQueue.Split(modId._id.ToString()).FirstOrDefault() ?? currentQueue;
-
-                        if (currentQueue.EndsWith("MODDED_"))
-                        {
-                            isModdedRoom = true;
-                            currentQueue = currentQueue.RemoveEnd("MODDED_");
-                        }
-                    }
-
-                    string gameModeName = GameMode.gameModeKeyByName.TryGetValue(gameTypeName, out int key) && GameMode.gameModeTable.TryGetValue(key, out GorillaGameManager manager) ? manager.GameModeName() : gameTypeName;
 
                     // Update description
                     Activity.State = NetworkSystem.Instance.SessionIsPrivate ? $"In {(Configuration.DisplayPrivateCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Private Room")}" : $"In {(Configuration.DisplayPublicCode.Value ? $"Room {NetworkSystem.Instance.RoomName}" : "Public Room")}";
-                    Activity.Details = $"Playing{(isModdedRoom ? " Modded " : " ")}{gameModeName.ToTitleCase()} in {currentQueue.ToTitleCase()}";
+                    Activity.Details = $"Playing {(GameModeUtils.CurrentGamemode is Gamemode gamemode ? gamemode.DisplayName : GorillaScoreBoard.error.ToTitleCase())}{(string.IsNullOrEmpty(queue) ? "" : $" in {queue}")}";
 
                     // Update party
                     Activity.Party.Size.CurrentSize = NetworkSystem.Instance.RoomPlayerCount;
-                    Activity.Party.Size.MaxSize = RoomSystem.GetRoomSize(gameModeString);
+                    Activity.Party.Size.MaxSize = RoomSystem.GetCurrentRoomExpectedSize();
                     Activity.Party.Id = string.Concat(NetworkSystem.Instance.RoomName, NetworkSystem.Instance.CurrentRegion.Replace("/*", ""), NetworkSystem.Instance.MasterClient.ActorNumber);
                     // Activity.Party.Privacy = NetworkSystem.Instance.SessionIsPrivate ? 1 : 0;
                     Activity.Instance = true;

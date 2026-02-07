@@ -15,6 +15,7 @@ namespace GorillaRichPresence.Utils
             GTZone.mall => "Atrium",
             GTZone.ghostReactor or GTZone.ghostReactorTunnel => "Ghost Reactor",
             GTZone.monkeBlocksShared => "Share My Blocks",
+            GTZone.forestWithCity => "Forest",
             _ => zone.GetName().ToTitleCase()
         };
 
